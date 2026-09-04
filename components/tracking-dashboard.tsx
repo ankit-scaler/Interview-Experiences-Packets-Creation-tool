@@ -12,13 +12,11 @@ import { formatUsd, formatDate, formatDateTime, formatDuration } from "@/lib/uti
 export function TrackingDashboard({
   data,
   appUrl,
-  companies,
-  roles,
+  packetPairs,
 }: {
   data: TrackingSummary;
   appUrl: string;
-  companies: string[];
-  roles: string[];
+  packetPairs: { company: string; role: string }[];
 }) {
   const router = useRouter();
   const [from, setFrom] = useState(data.from);
@@ -215,20 +213,31 @@ export function TrackingDashboard({
         </div>
       </Panel>
 
-      <PacketDirectory companies={companies} roles={roles} />
+      <PacketDirectory pairs={packetPairs} />
 
       <LearnerLookup />
     </div>
   );
 }
 
-function PacketDirectory({ companies, roles }: { companies: string[]; roles: string[] }) {
+function PacketDirectory({ pairs }: { pairs: { company: string; role: string }[] }) {
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<{ headers: string[]; rows: (string | number)[][] } | null>(null);
+
+  const companies = [...new Set(pairs.map((p) => p.company))].sort((a, b) => a.localeCompare(b));
+  const c = company.trim().toLowerCase();
+  // Roles for the typed company (substring match); all roles when none typed.
+  const roles = [
+    ...new Set(
+      pairs
+        .filter((p) => !c || p.company.toLowerCase().includes(c))
+        .map((p) => p.role),
+    ),
+  ].sort((a, b) => a.localeCompare(b));
 
   function query() {
     const p = new URLSearchParams();
