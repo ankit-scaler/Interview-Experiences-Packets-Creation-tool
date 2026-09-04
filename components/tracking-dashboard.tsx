@@ -9,7 +9,17 @@ import { Input } from "@/components/ui/input";
 import { MATCHED_LABEL } from "@/lib/labels";
 import { formatUsd, formatDate, formatDateTime, formatDuration } from "@/lib/utils";
 
-export function TrackingDashboard({ data, appUrl }: { data: TrackingSummary; appUrl: string }) {
+export function TrackingDashboard({
+  data,
+  appUrl,
+  companies,
+  roles,
+}: {
+  data: TrackingSummary;
+  appUrl: string;
+  companies: string[];
+  roles: string[];
+}) {
   const router = useRouter();
   const [from, setFrom] = useState(data.from);
   const [to, setTo] = useState(data.to);
@@ -205,14 +215,14 @@ export function TrackingDashboard({ data, appUrl }: { data: TrackingSummary; app
         </div>
       </Panel>
 
-      <PacketDirectory />
+      <PacketDirectory companies={companies} roles={roles} />
 
       <LearnerLookup />
     </div>
   );
 }
 
-function PacketDirectory() {
+function PacketDirectory({ companies, roles }: { companies: string[]; roles: string[] }) {
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [from, setFrom] = useState("");
@@ -276,20 +286,32 @@ function PacketDirectory() {
         <label className="text-xs">
           Company
           <Input
+            list="pd-companies"
             value={company}
             onChange={(e) => setCompany(e.target.value)}
             placeholder="any"
             className="mt-1 h-9 w-40"
           />
+          <datalist id="pd-companies">
+            {companies.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </label>
         <label className="text-xs">
           Role
           <Input
+            list="pd-roles"
             value={role}
             onChange={(e) => setRole(e.target.value)}
             placeholder="any"
             className="mt-1 h-9 w-40"
           />
+          <datalist id="pd-roles">
+            {roles.map((r) => (
+              <option key={r} value={r} />
+            ))}
+          </datalist>
         </label>
         <label className="text-xs">
           Edited from

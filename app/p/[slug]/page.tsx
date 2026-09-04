@@ -84,13 +84,6 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
                     )}
                   </div>
                 </div>
-                {round.isSpillover && (
-                  <p className="mb-3 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-                    Extra practice on job-description topics that didn&apos;t come up in the
-                    reported rounds.
-                  </p>
-                )}
-
                 <ol className="space-y-1">
                   {round.questions.map((q, i) => (
                     <li
