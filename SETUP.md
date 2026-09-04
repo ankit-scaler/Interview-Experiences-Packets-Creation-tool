@@ -167,8 +167,13 @@ npm test      # unit tests for matching / normalisation / header mapping
 1. Push this repo to GitHub (already remoted at
    `github.com/ankit-scaler/Interview-Experiences-Packets-Creation-tool`).
 2. <https://vercel.com> → **Add New → Project** → import the repo.
-3. **Environment Variables** — add every key from `.env`, except set:
-   - `AUTH_URL` and `NEXT_PUBLIC_APP_URL` → `https://YOUR-PROJECT.vercel.app`
+3. **Environment Variables** — add every key from `.env`, with these exceptions:
+   - **Omit `AUTH_URL` and `NEXT_PUBLIC_APP_URL` entirely.** You don't know the URL
+     yet, and you don't need to: Auth.js infers the host (`trustHost: true`), and
+     packet links fall back to Vercel's injected `VERCEL_PROJECT_PRODUCTION_URL`.
+     Add `NEXT_PUBLIC_APP_URL` later only if you put a custom domain in front.
+   - `CRON_SECRET` → generate a fresh one (`openssl rand -hex 16`), don't reuse dev.
+   - `OPENROUTER_API_KEY` → can stay blank; Sheet-only packets still work.
 4. Deploy.
 5. Back in Google Cloud → **Credentials** → your OAuth client → add
    `https://YOUR-PROJECT.vercel.app/api/auth/callback/google` to the redirect URIs.

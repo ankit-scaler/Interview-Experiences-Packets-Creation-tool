@@ -47,9 +47,28 @@ function resolvePrivateKey(): string {
   return key;
 }
 
+/**
+ * Public base URL, used to build learner packet links.
+ * Resolution order:
+ *   1. NEXT_PUBLIC_APP_URL      — set this once you have a custom domain
+ *   2. VERCEL_PROJECT_PRODUCTION_URL — Vercel injects this automatically (stable)
+ *   3. VERCEL_URL               — per-deployment URL (preview builds)
+ *   4. localhost
+ * This is only ever read on the server (client components receive it as a prop),
+ * so the non-NEXT_PUBLIC_ Vercel vars are safe to use here.
+ */
+function resolveAppUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL;
+  if (explicit) return explicit.replace(/\/$/, "");
+  const vercelHost =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (vercelHost) return `https://${vercelHost.replace(/\/$/, "")}`;
+  return "http://localhost:3000";
+}
+
 export const env = {
   // App
-  appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
+  appUrl: resolveAppUrl(),
   adminEmailDomain: optional("ADMIN_EMAIL_DOMAIN", "scaler.com").toLowerCase(),
   contactEmail: optional("CONTACT_EMAIL", "ankit.mishra@scaler.com"),
   cronSecret: optional("CRON_SECRET"),
