@@ -159,8 +159,13 @@ export function PacketEditor({
             disabled={busy !== null}
             onClick={() =>
               run("regen", async () => {
-                await api(`/api/packets/${packet.id}/regenerate`, "POST");
-                router.refresh();
+                try {
+                  await api(`/api/packets/${packet.id}/regenerate`, "POST");
+                } finally {
+                  // Refresh either way: on success to pick up the new job, on
+                  // failure so a since-deleted packet resolves to a 404 page.
+                  router.refresh();
+                }
               })
             }
           >
