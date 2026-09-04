@@ -1,5 +1,5 @@
 import type { SourceMode, Track, YoeBucket } from "@prisma/client";
-import { db } from "@/lib/db";
+import { db, withDbRetry } from "@/lib/db";
 import { normalizeCompany, normalizeRole } from "@/lib/normalize";
 import { makePacketSlug } from "@/lib/slug";
 import { runStep } from "./runner";
@@ -84,21 +84,35 @@ export async function findOrCreatePacket(input: CreatePacketInput, userId: strin
 
 /** Create a fresh generation job for a packet (INITIAL if empty, else APPEND). */
 export async function startGenerationJob(packetId: string, userId: string) {
-  const count = await db.question.count({ where: { packetId } });
-  const running = await db.generationJob.findFirst({
-    where: { packetId, status: { in: ["PENDING", "RUNNING"] } },
-  });
-  if (running) return running;
+  return withDbRetry(async () => {
+    const packet = await db.packet.findUnique({ where: { id: packetId }, select: { id: true } });
+    if (!packet) throw new Error("Packet not found.");
 
-  return db.generationJob.create({
-    data: {
-      packetId,
-      kind: count > 0 ? "APPEND" : "INITIAL",
-      status: "PENDING",
-      step: "LOAD_SHEET",
-      stepLabel: "Queued",
-      triggeredById: userId,
-    },
+    const count = await db.question.count({ where: { packetId } });
+
+    // Reclaim a job that got stranded (a step timed out and the browser stopped
+    // driving it) so "Pull new questions" isn't blocked forever.
+    const stale = new Date(Date.now() - 10 * 60_000);
+    await db.generationJob.updateMany({
+      where: { packetId, status: { in: ["PENDING", "RUNNING"] }, startedAt: { lt: stale } },
+      data: { status: "FAILED", error: "Timed out — superseded by a new run." },
+    });
+
+    const running = await db.generationJob.findFirst({
+      where: { packetId, status: { in: ["PENDING", "RUNNING"] } },
+    });
+    if (running) return running;
+
+    return db.generationJob.create({
+      data: {
+        packetId,
+        kind: count > 0 ? "APPEND" : "INITIAL",
+        status: "PENDING",
+        step: "LOAD_SHEET",
+        stepLabel: "Queued",
+        triggeredById: userId,
+      },
+    });
   });
 }
 
