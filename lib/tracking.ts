@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { buildAllReports, parseRange, type DateRange, type Report } from "@/lib/reports";
+import { NOT_INTERNAL, NOT_INTERNAL_VIA_READ } from "@/lib/internal";
 
 export interface ReadLogRow {
   email: string;
@@ -55,11 +56,11 @@ export async function trackingSummary(
 
   const [days, feedbackRows, syncState] = await Promise.all([
     db.packetReadDay.findMany({
-      where: { day: { gte: fromDay, lte: toDay } },
+      where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
       select: { seconds: true, packetRead: { select: { userEmail: true } } },
     }),
     db.feedback.findMany({
-      where: { createdAt: { gte: from, lte: to } },
+      where: { createdAt: { gte: from, lte: to }, NOT: NOT_INTERNAL },
       include: { packet: { select: { company: true, role: true } } },
       orderBy: { createdAt: "desc" },
       take: 6,

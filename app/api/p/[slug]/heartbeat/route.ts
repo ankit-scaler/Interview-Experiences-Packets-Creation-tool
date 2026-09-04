@@ -1,5 +1,6 @@
 import { guardAuthed, json } from "@/lib/api";
 import { db } from "@/lib/db";
+import { isInternalEmail } from "@/lib/internal";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,7 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
   if (guard.error) return guard.error;
   const email = guard.user.email;
   if (!email) return json({ ok: false });
+  if (isInternalEmail(email)) return json({ ok: true, counted: false });
 
   const body = (await req.json().catch(() => ({}))) as { seconds?: number };
   const delta = Math.min(MAX_DELTA, Math.max(0, Math.round(body.seconds ?? 0)));

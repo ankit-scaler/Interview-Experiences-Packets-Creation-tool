@@ -1,6 +1,7 @@
 import { guardAuthed, json, apiError } from "@/lib/api";
 import { db } from "@/lib/db";
 import { syncSoon } from "@/lib/sync";
+import { isInternalEmail } from "@/lib/internal";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,8 @@ export async function POST(_req: Request, { params }: { params: { slug: string }
   if (guard.error) return guard.error;
   const email = guard.user.email;
   if (!email) return apiError("No email on session", 400);
+  // Scaler staff reviewing a packet must not show up as a learner read.
+  if (isInternalEmail(email)) return json({ ok: true, counted: false });
 
   const packet = await db.packet.findUnique({
     where: { slug: params.slug },

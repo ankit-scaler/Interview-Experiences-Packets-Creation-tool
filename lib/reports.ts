@@ -5,6 +5,7 @@
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { formatDate, formatDateTime, formatDuration } from "@/lib/utils";
+import { NOT_INTERNAL, NOT_INTERNAL_VIA_READ } from "@/lib/internal";
 
 export interface DateRange {
   /** Inclusive start / end as timestamps (local calendar day → instant). */
@@ -74,7 +75,7 @@ async function packetsCreated({ from, to }: DateRange): Promise<Report> {
 /** Reads per packet within the range (a read = a distinct learner-day). */
 async function readsByPacket({ fromDay, toDay }: DateRange): Promise<Report> {
   const days = await db.packetReadDay.findMany({
-    where: { day: { gte: fromDay, lte: toDay } },
+    where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
     include: { packetRead: { include: { packet: { select: { company: true, role: true, track: true, slug: true } } } } },
   });
   const byPacket = new Map<string, { company: string; role: string; track: string; slug: string; reads: number; learners: Set<string>; seconds: number }>();
@@ -106,7 +107,7 @@ async function packetsNoReads({ to, fromDay, toDay }: DateRange): Promise<Report
   const readSlugs = new Set(
     (
       await db.packetReadDay.findMany({
-        where: { day: { gte: fromDay, lte: toDay } },
+        where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
         select: { packetRead: { select: { packet: { select: { slug: true } } } } },
       })
     ).map((d) => d.packetRead.packet.slug),
@@ -166,7 +167,7 @@ async function llmCostByPacket({ from, to }: DateRange): Promise<Report> {
 /** Time each learner spent on each packet within the range. */
 async function timeSpentByLearnerPacket({ fromDay, toDay }: DateRange): Promise<Report> {
   const days = await db.packetReadDay.findMany({
-    where: { day: { gte: fromDay, lte: toDay }, seconds: { gt: 0 } },
+    where: { day: { gte: fromDay, lte: toDay }, seconds: { gt: 0 }, NOT: NOT_INTERNAL_VIA_READ },
     include: { packetRead: { include: { packet: { select: { company: true, role: true, slug: true } } } } },
   });
   const byPair = new Map<string, { email: string; company: string; role: string; slug: string; seconds: number; days: number }>();
@@ -191,7 +192,7 @@ async function timeSpentByLearnerPacket({ fromDay, toDay }: DateRange): Promise<
 /** Learners who read the same packet on 2+ distinct days in a calendar month. */
 async function repeatReaders({ fromDay, toDay }: DateRange): Promise<Report> {
   const days = await db.packetReadDay.findMany({
-    where: { day: { gte: fromDay, lte: toDay } },
+    where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
     include: { packetRead: { include: { packet: { select: { company: true, role: true, slug: true } } } } },
   });
   const counts = new Map<string, { email: string; company: string; role: string; slug: string; month: string; days: number }>();
@@ -216,7 +217,7 @@ async function repeatReaders({ fromDay, toDay }: DateRange): Promise<Report> {
 
 async function feedbackReport({ from, to }: DateRange): Promise<Report> {
   const fb = await db.feedback.findMany({
-    where: { createdAt: { gte: from, lte: to } },
+    where: { createdAt: { gte: from, lte: to }, NOT: NOT_INTERNAL },
     include: { packet: { select: { company: true, role: true, slug: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -239,7 +240,7 @@ async function feedbackReport({ from, to }: DateRange): Promise<Report> {
 
 async function vaultClicks({ from, to }: DateRange): Promise<Report> {
   const clicks = await db.vaultClick.findMany({
-    where: { createdAt: { gte: from, lte: to } },
+    where: { createdAt: { gte: from, lte: to }, NOT: NOT_INTERNAL },
     include: { packet: { select: { company: true, role: true, slug: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -261,6 +262,7 @@ async function readLog({ from, to }: DateRange): Promise<Report> {
   const reads = await db.packetRead.findMany({
     where: {
       OR: [{ firstReadAt: { gte: from, lte: to } }, { lastReadAt: { gte: from, lte: to } }],
+      NOT: NOT_INTERNAL,
     },
     include: {
       packet: { select: { company: true, role: true, slug: true, track: true } },
@@ -299,7 +301,7 @@ async function readLog({ from, to }: DateRange): Promise<Report> {
 /** Raw read-day rows (learner × packet × day × seconds). */
 async function readSessionsRaw({ fromDay, toDay }: DateRange): Promise<Report> {
   const days = await db.packetReadDay.findMany({
-    where: { day: { gte: fromDay, lte: toDay } },
+    where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
     include: { packetRead: { include: { packet: { select: { company: true, role: true, slug: true } } } } },
     orderBy: { day: "desc" },
   });
