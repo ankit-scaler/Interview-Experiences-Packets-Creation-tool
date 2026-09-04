@@ -19,6 +19,7 @@ const TAB_FOR: Record<string, string> = {
   feedback: "Feedback",
   "vault-clicks": "Vault Clicks",
   "read-sessions": "Read Sessions",
+  "daily-reads": "Daily all reads tracker",
 };
 
 /** All-time range for the mirror. */
@@ -53,8 +54,8 @@ export async function syncAll(): Promise<{ ok: boolean; note?: string }[]> {
 }
 
 /**
- * Called after a learner read / feedback / vault click. A full 9-tab rewrite is
- * too heavy to run on every page view, so the Sheets mirror is refreshed by the
+ * Called after a learner read / feedback / vault click. A full multi-tab rewrite
+ * is too heavy to run on every page view, so the Sheets mirror is refreshed by the
  * nightly cron and the "Sync to Sheets" button. This is intentionally a no-op —
  * kept as the hook point if a lighter incremental push is added later.
  */

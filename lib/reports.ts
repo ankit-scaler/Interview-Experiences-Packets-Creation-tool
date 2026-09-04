@@ -320,6 +320,31 @@ async function readSessionsRaw({ fromDay, toDay }: DateRange): Promise<Report> {
   };
 }
 
+/**
+ * One row per learner × packet × day — every read that happened, with the time
+ * spent that day. Mirrored to the "Daily all reads tracker" tab and refreshed on
+ * the nightly sync.
+ */
+async function dailyReads({ fromDay, toDay }: DateRange): Promise<Report> {
+  const days = await db.packetReadDay.findMany({
+    where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
+    include: { packetRead: { include: { packet: { select: { company: true, role: true, slug: true } } } } },
+    orderBy: [{ day: "desc" }],
+  });
+  return {
+    key: "daily-reads",
+    title: "Daily all reads tracker",
+    headers: ["Packet Name", "Link", "Email", "Date Read", "Time Spent"],
+    rows: days.map((d) => [
+      `${d.packetRead.packet.company} — ${d.packetRead.packet.role}`,
+      packetUrl(d.packetRead.packet.slug),
+      d.packetRead.userEmail,
+      formatDate(d.day),
+      formatDuration(d.seconds),
+    ]),
+  };
+}
+
 export const REPORTS: Record<string, (r: DateRange) => Promise<Report>> = {
   "packets-created": packetsCreated,
   reads: readsByPacket,
@@ -331,6 +356,7 @@ export const REPORTS: Record<string, (r: DateRange) => Promise<Report>> = {
   feedback: feedbackReport,
   "vault-clicks": vaultClicks,
   "read-sessions": readSessionsRaw,
+  "daily-reads": dailyReads,
 };
 
 export async function buildReport(key: string, range: DateRange): Promise<Report | null> {

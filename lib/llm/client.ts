@@ -114,7 +114,12 @@ export async function complete(opts: CompleteOptions): Promise<CompleteResult> {
     ...(opts.web ? { plugins: [opts.web] } : {}),
   } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming;
 
-  const res = await client().chat.completions.create(body);
+  let res: OpenAI.Chat.ChatCompletion;
+  try {
+    res = await client().chat.completions.create(body);
+  } catch (err) {
+    throw asFriendlyLlmError(err, opts.model);
+  }
 
   const usage = extractUsage(res.usage);
   const cost = await recordLlmCall({
@@ -126,6 +131,30 @@ export async function complete(opts: CompleteOptions): Promise<CompleteResult> {
   });
 
   return { text: (res.choices[0]?.message?.content ?? "").trim(), usage, costUsd: cost };
+}
+
+/** Turn an OpenRouter/OpenAI SDK error into a message an admin can act on. */
+function asFriendlyLlmError(err: unknown, model: string): Error {
+  const e = err as { status?: number; message?: string; error?: { message?: string } };
+  const status = e?.status;
+  const detail = e?.error?.message || e?.message || "";
+  if (status === 402) {
+    return new Error(
+      "OpenRouter is out of credits (or the daily spend limit was hit). Add credit / raise the limit, then retry from the failed step.",
+    );
+  }
+  if (status === 429) {
+    return new Error("OpenRouter rate-limited this request. Wait a minute and retry from the failed step.");
+  }
+  if (status === 404 || /no (allowed )?providers|not a valid model/i.test(detail)) {
+    return new Error(
+      `Model "${model}" isn't available on your OpenRouter key. Enable it at openrouter.ai, or change LLM_MODEL / LLM_MODEL_CHEAP.`,
+    );
+  }
+  if (status === 401) {
+    return new Error("OpenRouter rejected the API key (401). Check OPENROUTER_API_KEY.");
+  }
+  return new Error(`LLM call failed${status ? ` (${status})` : ""}: ${detail || String(err)}`);
 }
 
 /** Parse the first JSON value (object or array) out of a model response. */

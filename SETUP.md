@@ -120,8 +120,12 @@ Set `AUTH_URL` and `NEXT_PUBLIC_APP_URL` to `http://localhost:3000` for now.
 <https://openrouter.ai/keys> → **Create key** → paste as `OPENROUTER_API_KEY`.
 All model calls (Claude, GPT) go through OpenRouter's OpenAI-compatible gateway.
 
-- Leave `LLM_MODEL=anthropic/claude-sonnet-5` and `LLM_MODEL_CHEAP=anthropic/claude-haiku-4.5`.
-  (OpenRouter slugs use a dot: `claude-haiku-4.5`, not `4-5`.)
+- `LLM_MODEL` = the research/spillover model, `LLM_MODEL_CHEAP` = everything else.
+  Whatever you pick must be enabled on your OpenRouter key. OpenRouter slugs use a
+  dot (`anthropic/claude-sonnet-4.6`, `anthropic/claude-haiku-4.5`), not a dash.
+- If your OpenRouter key has a daily spend limit, size it for your volume: a
+  Sheet+web packet costs ~$0.30-0.45, so a $7/day limit is ~15-20 packets/day.
+  Hitting the limit mid-run fails that step with a clear message and can be retried.
 - `MAX_PACKET_COST_USD=0.50` aborts any single generation run that would cost more
   (the admin can tick "allow higher cost" on the create form to override).
 - Without a key: **Sheet-only** packets still work fully (no readability pass, no
