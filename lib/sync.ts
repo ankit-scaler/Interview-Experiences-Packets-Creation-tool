@@ -20,6 +20,7 @@ const TAB_FOR: Record<string, string> = {
   "vault-clicks": "Vault Clicks",
   "read-sessions": "Read Sessions",
   "daily-reads": "Daily all reads tracker",
+  "packet-roster": "Packet Directory",
 };
 
 /** All-time range for the mirror. */

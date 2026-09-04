@@ -205,7 +205,151 @@ export function TrackingDashboard({ data, appUrl }: { data: TrackingSummary; app
         </div>
       </Panel>
 
+      <PacketDirectory />
+
       <LearnerLookup />
+    </div>
+  );
+}
+
+function PacketDirectory() {
+  const [company, setCompany] = useState("");
+  const [role, setRole] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<{ headers: string[]; rows: (string | number)[][] } | null>(null);
+
+  function query() {
+    const p = new URLSearchParams();
+    if (company.trim()) p.set("company", company.trim());
+    if (role.trim()) p.set("role", role.trim());
+    if (from) p.set("from", from);
+    if (to) p.set("to", to);
+    return p.toString();
+  }
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tracking/roster?${query()}`);
+      setData(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const at = (row: (string | number)[], header: string) => {
+    const i = data?.headers.indexOf(header) ?? -1;
+    return i >= 0 ? String(row[i] ?? "") : "";
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold">Packet directory</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Packets by company / role and last-created-or-edited date, with unique
+            non-Scaler readers.
+          </p>
+        </div>
+        {data && (
+          <a
+            href={`/api/tracking/export?report=packet-roster&${query()}`}
+            download
+            className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground"
+          >
+            <Download className="h-3.5 w-3.5" />
+            CSV
+          </a>
+        )}
+      </div>
+
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          load();
+        }}
+      >
+        <label className="text-xs">
+          Company
+          <Input
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            placeholder="any"
+            className="mt-1 h-9 w-40"
+          />
+        </label>
+        <label className="text-xs">
+          Role
+          <Input
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            placeholder="any"
+            className="mt-1 h-9 w-40"
+          />
+        </label>
+        <label className="text-xs">
+          Edited from
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1 h-9" />
+        </label>
+        <label className="text-xs">
+          Edited to
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 h-9" />
+        </label>
+        <Button type="submit" size="sm" disabled={loading}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load"}
+        </Button>
+      </form>
+
+      {data && (
+        <div className="mt-3 max-h-[28rem] overflow-auto rounded-md border border-border">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-muted">
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="px-3 py-2 font-medium">Company</th>
+                <th className="px-3 py-2 font-medium">Role</th>
+                <th className="px-3 py-2 font-medium">Last edited</th>
+                <th className="px-3 py-2 font-medium">Unique reads</th>
+                <th className="px-3 py-2 font-medium">Reader emails</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.rows.map((r, i) => (
+                <tr key={i} className="border-t border-border align-top">
+                  <td className="px-3 py-2">
+                    <a
+                      href={at(r, "Packet link")}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:underline"
+                    >
+                      {at(r, "Company")}
+                    </a>
+                  </td>
+                  <td className="px-3 py-2">{at(r, "Role")}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs">
+                    {at(r, "Last created / edited")}
+                  </td>
+                  <td className="px-3 py-2">{at(r, "Unique reads")}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {at(r, "Reader emails") || "—"}
+                  </td>
+                </tr>
+              ))}
+              {!data.rows.length && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-4 text-sm text-muted-foreground">
+                    No packets match.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

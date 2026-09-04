@@ -345,6 +345,68 @@ async function dailyReads({ fromDay, toDay }: DateRange): Promise<Report> {
   };
 }
 
+export interface RosterFilters {
+  company?: string | null;
+  role?: string | null;
+}
+
+/**
+ * One row per packet, filterable by company / role and a last-created-or-edited
+ * window — the "which packets exist and who has read them" directory. Reads are
+ * all-time and exclude internal (@scaler.com) accounts.
+ */
+export async function packetRoster(
+  { from, to }: DateRange,
+  filters: RosterFilters = {},
+): Promise<Report> {
+  const company = filters.company?.trim();
+  const role = filters.role?.trim();
+  const packets = await db.packet.findMany({
+    where: {
+      updatedAt: { gte: from, lte: to },
+      ...(company ? { company: { contains: company, mode: "insensitive" } } : {}),
+      ...(role ? { role: { contains: role, mode: "insensitive" } } : {}),
+    },
+    select: {
+      company: true,
+      role: true,
+      track: true,
+      status: true,
+      slug: true,
+      updatedAt: true,
+      reads: { where: { NOT: NOT_INTERNAL }, select: { userEmail: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+  return {
+    key: "packet-roster",
+    title: "Packet directory",
+    headers: [
+      "Company",
+      "Role",
+      "Track",
+      "Status",
+      "Last created / edited",
+      "Unique reads",
+      "Reader emails",
+      "Packet link",
+    ],
+    rows: packets.map((p) => {
+      const emails = [...new Set(p.reads.map((r) => r.userEmail.toLowerCase()))].sort();
+      return [
+        p.company,
+        p.role,
+        p.track,
+        p.status,
+        formatDate(p.updatedAt),
+        emails.length,
+        emails.join(", "),
+        packetUrl(p.slug),
+      ];
+    }),
+  };
+}
+
 export const REPORTS: Record<string, (r: DateRange) => Promise<Report>> = {
   "packets-created": packetsCreated,
   reads: readsByPacket,
@@ -357,6 +419,7 @@ export const REPORTS: Record<string, (r: DateRange) => Promise<Report>> = {
   "vault-clicks": vaultClicks,
   "read-sessions": readSessionsRaw,
   "daily-reads": dailyReads,
+  "packet-roster": (r) => packetRoster(r),
 };
 
 export async function buildReport(key: string, range: DateRange): Promise<Report | null> {
