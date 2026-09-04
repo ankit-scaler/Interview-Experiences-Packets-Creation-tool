@@ -64,8 +64,10 @@ export interface CompleteResult {
 }
 
 /**
- * OpenRouter returns real billed usage on every response, including cached-token
- * detail and the actual dollar cost (which already includes web-search fees).
+ * OpenRouter usage. `cost` is meant to be the actual billed amount, but it can
+ * come back as 0 or missing on the chat response (it's finalised slightly later,
+ * queryable via /generation). We only trust a POSITIVE reported cost; anything
+ * else falls back to the local price-table estimate in pricing.ts.
  */
 function extractUsage(raw: unknown): TokenUsage {
   const u = (raw ?? {}) as {
@@ -74,13 +76,13 @@ function extractUsage(raw: unknown): TokenUsage {
     cost?: number;
     prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
   };
+  const reported = typeof u.cost === "number" && u.cost > 0 ? u.cost : undefined;
   return {
     inputTokens: u.prompt_tokens ?? 0,
     outputTokens: u.completion_tokens ?? 0,
     cachedInputTokens: u.prompt_tokens_details?.cached_tokens ?? 0,
     cacheWriteTokens: u.prompt_tokens_details?.cache_write_tokens ?? 0,
-    // Authoritative cost straight from OpenRouter; undefined falls back to our table.
-    reportedCostUsd: typeof u.cost === "number" ? u.cost : undefined,
+    reportedCostUsd: reported,
   };
 }
 
@@ -122,6 +124,13 @@ export async function complete(opts: CompleteOptions): Promise<CompleteResult> {
   }
 
   const usage = extractUsage(res.usage);
+  // OpenRouter often finalises cost just after the response; if it came back 0,
+  // fetch the authoritative figure from /generation before falling back to the
+  // local estimate.
+  if (usage.reportedCostUsd === undefined && res.id) {
+    const real = await fetchGenerationCost(res.id);
+    if (real !== undefined) usage.reportedCostUsd = real;
+  }
   const cost = await recordLlmCall({
     purpose: opts.purpose,
     model: opts.model,
@@ -131,6 +140,30 @@ export async function complete(opts: CompleteOptions): Promise<CompleteResult> {
   });
 
   return { text: (res.choices[0]?.message?.content ?? "").trim(), usage, costUsd: cost };
+}
+
+/** Authoritative post-hoc cost for a completion, once OpenRouter has finalised it. */
+async function fetchGenerationCost(genId: string): Promise<number | undefined> {
+  const url = `${env.openRouterBaseUrl.replace(/\/$/, "")}/generation?id=${encodeURIComponent(genId)}`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, attempt === 0 ? 250 : 600));
+      // eslint-disable-next-line no-await-in-loop
+      const r = await fetch(url, {
+        headers: { Authorization: `Bearer ${env.openRouterApiKey}` },
+      });
+      if (!r.ok) continue;
+      // eslint-disable-next-line no-await-in-loop
+      const j = (await r.json()) as { data?: { total_cost?: number } };
+      const c = j?.data?.total_cost;
+      if (typeof c === "number" && c > 0) return c;
+      if (typeof c === "number") return 0; // genuinely free — stop retrying
+    } catch {
+      /* retry */
+    }
+  }
+  return undefined;
 }
 
 /** Turn an OpenRouter/OpenAI SDK error into a message an admin can act on. */

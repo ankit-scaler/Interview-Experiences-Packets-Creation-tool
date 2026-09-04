@@ -39,7 +39,8 @@ export interface TokenUsage {
 export const WEB_SEARCH_USD_PER_1K = 7;
 
 export function costUsd(model: string, u: TokenUsage): number {
-  // Trust OpenRouter's billed figure when we have it.
+  // A defined reportedCostUsd is authoritative (from OpenRouter's /generation).
+  // `undefined` means unconfirmed — fall back to the local price-table estimate.
   if (typeof u.reportedCostUsd === "number" && u.reportedCostUsd >= 0) {
     return Math.round(u.reportedCostUsd * 1e6) / 1e6;
   }

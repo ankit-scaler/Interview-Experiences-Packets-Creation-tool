@@ -16,18 +16,18 @@ describe("costUsd", () => {
     expect(c).toBeCloseTo(0.4213, 6);
   });
 
-  it("treats a reported cost of 0 as authoritative (free/promo credits)", () => {
+  it("treats a confirmed reported cost of 0 as authoritative (free model)", () => {
     expect(
       costUsd(SONNET, {
         inputTokens: M,
         outputTokens: M,
         cachedInputTokens: 0,
-        reportedCostUsd: 0,
+        reportedCostUsd: 0, // set only after /generation confirms total_cost === 0
       }),
     ).toBe(0);
   });
 
-  it("falls back to the table when no cost is reported", () => {
+  it("falls back to the table when cost is unconfirmed (undefined)", () => {
     // haiku-4.5 = $1/MTok in, $5/MTok out
     expect(costUsd(HAIKU, { inputTokens: M, outputTokens: M, cachedInputTokens: 0 })).toBeCloseTo(6, 6);
     // sonnet-5 = $2/MTok in, $10/MTok out
