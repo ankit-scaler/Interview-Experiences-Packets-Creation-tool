@@ -124,12 +124,11 @@ export async function complete(opts: CompleteOptions): Promise<CompleteResult> {
   }
 
   const usage = extractUsage(res.usage);
-  // OpenRouter often finalises cost just after the response; if it came back 0,
-  // fetch the authoritative figure from /generation before falling back to the
-  // local estimate.
+  // The chat response's cost is 0 until finalised; try /generation for the real
+  // figure. costUsd() takes max(reported, token-estimate), so a still-0 answer
+  // here just means the estimate is used as the floor.
   if (usage.reportedCostUsd === undefined && res.id) {
-    const real = await fetchGenerationCost(res.id);
-    if (real !== undefined) usage.reportedCostUsd = real;
+    usage.reportedCostUsd = await fetchGenerationCost(res.id);
   }
   const cost = await recordLlmCall({
     purpose: opts.purpose,
@@ -158,7 +157,8 @@ async function fetchGenerationCost(genId: string): Promise<number | undefined> {
       const j = (await r.json()) as { data?: { total_cost?: number } };
       const c = j?.data?.total_cost;
       if (typeof c === "number" && c > 0) return c;
-      if (typeof c === "number") return 0; // genuinely free — stop retrying
+      // 0 here can mean "not finalised yet" — keep trying, then give up (the
+      // token estimate covers it).
     } catch {
       /* retry */
     }

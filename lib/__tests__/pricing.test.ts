@@ -6,31 +6,31 @@ const HAIKU = "anthropic/claude-haiku-4.5";
 const SONNET = "anthropic/claude-sonnet-5";
 
 describe("costUsd", () => {
-  it("prefers the cost OpenRouter actually billed, ignoring the estimate", () => {
+  it("uses OpenRouter's reported cost when it exceeds the token estimate", () => {
+    // ~28k in + 3k out on sonnet ≈ $0.086 estimate; reported (incl. search fees)
+    // is higher, so it wins.
     const c = costUsd(SONNET, {
-      inputTokens: M,
-      outputTokens: M,
+      inputTokens: 28_000,
+      outputTokens: 3_000,
       cachedInputTokens: 0,
       reportedCostUsd: 0.4213,
     });
     expect(c).toBeCloseTo(0.4213, 6);
   });
 
-  it("treats a confirmed reported cost of 0 as authoritative (free model)", () => {
+  it("uses the token estimate as a floor when OpenRouter reports 0 (not finalised)", () => {
     expect(
       costUsd(SONNET, {
         inputTokens: M,
         outputTokens: M,
         cachedInputTokens: 0,
-        reportedCostUsd: 0, // set only after /generation confirms total_cost === 0
+        reportedCostUsd: 0,
       }),
-    ).toBe(0);
+    ).toBeCloseTo(12, 6); // sonnet estimate: $2/M in + $10/M out
   });
 
-  it("falls back to the table when cost is unconfirmed (undefined)", () => {
-    // haiku-4.5 = $1/MTok in, $5/MTok out
+  it("falls back to the table estimate when no cost is reported", () => {
     expect(costUsd(HAIKU, { inputTokens: M, outputTokens: M, cachedInputTokens: 0 })).toBeCloseTo(6, 6);
-    // sonnet-5 = $2/MTok in, $10/MTok out
     expect(costUsd(SONNET, { inputTokens: M, outputTokens: M, cachedInputTokens: 0 })).toBeCloseTo(12, 6);
   });
 

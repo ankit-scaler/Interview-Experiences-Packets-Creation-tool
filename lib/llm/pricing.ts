@@ -38,21 +38,27 @@ export interface TokenUsage {
 /** Per-search fee used only when estimating (OpenRouter/Exa ≈ $0.007). */
 export const WEB_SEARCH_USD_PER_1K = 7;
 
+/**
+ * Booked cost = max(OpenRouter's reported cost, our token-based estimate).
+ *
+ * OpenRouter's `cost` on the chat response is 0 until finalised, and even the
+ * /generation endpoint can still read 0 if queried too soon — so a bare "trust
+ * the reported figure" undercounts. Taking the max means the estimate acts as a
+ * floor: we never book less than the tokens are worth, which is the right error
+ * direction for a spend guardrail. When OpenRouter's number lands (usually a bit
+ * above list price), it wins.
+ */
 export function costUsd(model: string, u: TokenUsage): number {
-  // A defined reportedCostUsd is authoritative (from OpenRouter's /generation).
-  // `undefined` means unconfirmed — fall back to the local price-table estimate.
-  if (typeof u.reportedCostUsd === "number" && u.reportedCostUsd >= 0) {
-    return Math.round(u.reportedCostUsd * 1e6) / 1e6;
-  }
-
   const p = priceFor(model);
   const freshInput = Math.max(0, u.inputTokens - u.cachedInputTokens);
-  const tokenCost =
+  const estimate =
     (freshInput * p.input +
       u.cachedInputTokens * p.input * 0.1 +
       (u.cacheWriteTokens ?? 0) * p.input * 1.25 +
       u.outputTokens * p.output) /
-    1_000_000;
-  const searchCost = ((u.webSearchRequests ?? 0) * WEB_SEARCH_USD_PER_1K) / 1_000;
-  return Math.round((tokenCost + searchCost) * 1e6) / 1e6;
+      1_000_000 +
+    ((u.webSearchRequests ?? 0) * WEB_SEARCH_USD_PER_1K) / 1_000;
+
+  const reported = typeof u.reportedCostUsd === "number" ? u.reportedCostUsd : 0;
+  return Math.round(Math.max(reported, estimate) * 1e6) / 1e6;
 }
