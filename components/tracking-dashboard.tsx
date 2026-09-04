@@ -214,6 +214,7 @@ function LearnerLookup() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
+    internal?: boolean;
     reads: { company: string; role: string; slug: string; firstReadAt: string; lastReadAt: string; readDays: number }[];
     feedback: { company: string; role: string; stars: number; matched: "YES" | "PARTLY" | "NO"; comment: string | null }[];
   } | null>(null);
@@ -254,6 +255,12 @@ function LearnerLookup() {
       </form>
       {result && (
         <div className="mt-4 space-y-3">
+          {result.internal && (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+              This is a Scaler staff account — its activity is excluded from all
+              tracking metrics.
+            </p>
+          )}
           <p className="text-xs font-medium text-muted-foreground">
             Packets read ({result.reads.length})
           </p>

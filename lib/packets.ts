@@ -1,10 +1,17 @@
 import { db } from "@/lib/db";
+import { NOT_INTERNAL } from "@/lib/internal";
 
 export async function listPackets() {
   const packets = await db.packet.findMany({
     orderBy: { updatedAt: "desc" },
     include: {
-      _count: { select: { questions: true, reads: true } },
+      _count: {
+        select: {
+          questions: true,
+          // Learner reads only — Scaler staff reviewing a packet don't count.
+          reads: { where: { NOT: NOT_INTERNAL } },
+        },
+      },
       rounds: { select: { id: true } },
     },
   });

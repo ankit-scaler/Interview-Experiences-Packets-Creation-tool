@@ -1,5 +1,6 @@
 import { guardAdmin, json, apiError } from "@/lib/api";
 import { db } from "@/lib/db";
+import { isInternalEmail } from "@/lib/internal";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,9 @@ export async function GET(req: Request) {
 
   return json({
     email,
+    // Scaler staff activity is excluded from every metric; surface that here so
+    // an admin doesn't mistake a review session for a learner.
+    internal: isInternalEmail(email),
     reads: reads.map((r) => ({
       slug: r.packet.slug,
       company: r.packet.company,
