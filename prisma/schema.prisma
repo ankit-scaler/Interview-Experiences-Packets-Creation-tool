@@ -1,0 +1,379 @@
+// Interview Packet Creation & Distribution Tool — data model
+// See /Users/ankitmishra/.claude/plans/cozy-honking-squid.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth.js (NextAuth v5) — DB session strategy
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  LEARNER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(LEARNER)
+  createdAt     DateTime  @default(now())
+
+  accounts       Account[]
+  sessions       Session[]
+  createdPackets Packet[]  @relation("PacketCreatedBy")
+  jobs           GenerationJob[]
+}
+
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? @db.Text
+  access_token             String? @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? @db.Text
+  session_state            String?
+  refresh_token_expires_in Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Packets
+// ---------------------------------------------------------------------------
+
+enum Track {
+  ACADEMY
+  DEVOPS
+  AIML
+  DSML
+}
+
+enum YoeBucket {
+  LT2 // < 2 years
+  B2_5 // 2 – 5 years
+  GT5 // 5+ years
+}
+
+enum SourceMode {
+  SHEET_ONLY
+  SHEET_PLUS_WEB
+}
+
+enum PacketStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Packet {
+  id              String       @id @default(cuid())
+  slug            String       @unique
+  track           Track
+  company         String
+  companyNorm     String
+  role            String
+  roleNorm        String
+  yoeBucket       YoeBucket
+  stack           String?
+  location        String       @default("India")
+  jdText          String?      @db.Text
+  jdFileName      String?
+  jdSummary       String?      @db.Text
+  sourceMode      SourceMode   @default(SHEET_ONLY)
+  webSources      String[]     @default([])
+  allowHigherCost Boolean      @default(false)
+  status          PacketStatus @default(DRAFT)
+  lifetimeCostUsd Float        @default(0)
+  lastSheetRowDate DateTime?
+  createdById     String
+  createdBy       User         @relation("PacketCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  lastGeneratedAt DateTime?
+  publishedAt     DateTime?
+
+  rounds      Round[]
+  questions   Question[]
+  suppressed  SuppressedQuestion[]
+  jobs        GenerationJob[]
+  reads       PacketRead[]
+  feedback    Feedback[]
+  llmCalls    LlmCall[]
+  vaultClicks VaultClick[]
+
+  @@unique([track, companyNorm, roleNorm, yoeBucket])
+}
+
+model Round {
+  id          String   @id @default(cuid())
+  packetId    String
+  packet      Packet   @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  order       Int
+  name        String
+  duration    String?
+  isSpillover Boolean  @default(false)
+  sheetKey    String? // normalized sheet round label this round maps to (e.g. "r1")
+  createdAt   DateTime @default(now())
+
+  questions Question[]
+
+  @@index([packetId])
+}
+
+enum QuestionSource {
+  SHEET
+  WEB
+  JD_SPILLOVER
+  MANUAL
+}
+
+enum QuestionStatus {
+  ACTIVE
+  REMOVED
+}
+
+enum ProblemLinkSource {
+  LEETCODE
+  GFG
+  MANUAL
+}
+
+model Question {
+  id               String             @id @default(cuid())
+  packetId         String
+  packet           Packet             @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  roundId          String
+  round            Round              @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  order            Int
+  source           QuestionSource
+  originalText     String             @db.Text
+  improvedText     String             @db.Text
+  displayText      String             @db.Text
+  editedByAdmin    Boolean            @default(false)
+  problemLink      String?
+  problemLinkSource ProblemLinkSource?
+  normalizedText   String
+  status           QuestionStatus     @default(ACTIVE)
+  sheetRef         Json?
+  occurrences      Int                @default(1)
+  lastAskedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([packetId])
+  @@index([roundId])
+  @@index([packetId, normalizedText])
+}
+
+// Questions an admin explicitly removed — never re-added on APPEND.
+model SuppressedQuestion {
+  id             String   @id @default(cuid())
+  packetId       String
+  packet         Packet   @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  normalizedText String
+  createdAt      DateTime @default(now())
+
+  @@unique([packetId, normalizedText])
+}
+
+// ---------------------------------------------------------------------------
+// Generation jobs + LLM cost tracking
+// ---------------------------------------------------------------------------
+
+enum JobKind {
+  INITIAL
+  APPEND
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum JobStep {
+  LOAD_SHEET
+  SCOPE_FILTER
+  READABILITY
+  WEB_RESEARCH
+  MERGE
+  NAME_ROUNDS
+  JD_SPILLOVER
+  PROBLEM_LINKS
+  FINALIZE
+  DONE
+}
+
+model GenerationJob {
+  id                String    @id @default(cuid())
+  packetId          String
+  packet            Packet    @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  kind              JobKind
+  status            JobStatus @default(PENDING)
+  step              JobStep   @default(LOAD_SHEET)
+  progress          Int       @default(0)
+  stepLabel         String    @default("Queued")
+  log               String    @default("") @db.Text
+  error             String?   @db.Text
+  scratch           Json? // intermediate step state
+  stats             Json?
+  inputTokens       Int       @default(0)
+  outputTokens      Int       @default(0)
+  cachedInputTokens Int       @default(0)
+  costUsd           Float     @default(0)
+  triggeredById     String?
+  triggeredBy       User?     @relation(fields: [triggeredById], references: [id])
+  startedAt         DateTime  @default(now())
+  finishedAt        DateTime?
+
+  llmCalls LlmCall[]
+
+  @@index([packetId])
+}
+
+enum LlmPurpose {
+  SCOPE_FILTER
+  READABILITY
+  WEB_RESEARCH
+  MERGE
+  NAME_ROUNDS
+  PROBLEM_LINKS
+  JD_SPILLOVER
+  LINK_LOOKUP
+}
+
+model LlmCall {
+  id                String     @id @default(cuid())
+  jobId             String?
+  job               GenerationJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  packetId          String?
+  packet            Packet?    @relation(fields: [packetId], references: [id], onDelete: SetNull)
+  purpose           LlmPurpose
+  model             String
+  inputTokens       Int        @default(0)
+  outputTokens      Int        @default(0)
+  cachedInputTokens Int        @default(0)
+  webSearchRequests Int        @default(0)
+  costUsd           Float      @default(0)
+  createdAt         DateTime   @default(now())
+
+  @@index([jobId])
+  @@index([packetId])
+}
+
+// ---------------------------------------------------------------------------
+// Reads + feedback
+// ---------------------------------------------------------------------------
+
+model PacketRead {
+  id          String   @id @default(cuid())
+  packetId    String
+  packet      Packet   @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  userEmail   String
+  userId      String?
+  firstReadAt DateTime @default(now())
+  lastReadAt  DateTime @default(now())
+  readDays    Int      @default(1)
+  syncedAt    DateTime?
+
+  days PacketReadDay[]
+
+  @@unique([packetId, userEmail])
+  @@index([packetId])
+  @@index([userEmail])
+}
+
+model PacketReadDay {
+  id           String     @id @default(cuid())
+  packetReadId String
+  packetRead   PacketRead @relation(fields: [packetReadId], references: [id], onDelete: Cascade)
+  day          DateTime   @db.Date
+  seconds      Int        @default(0) // active time on the packet that day
+
+  @@unique([packetReadId, day])
+}
+
+model VaultClick {
+  id        String   @id @default(cuid())
+  packetId  String?
+  packet    Packet?  @relation(fields: [packetId], references: [id], onDelete: SetNull)
+  userEmail String
+  createdAt DateTime @default(now())
+  syncedAt  DateTime?
+
+  @@index([userEmail])
+  @@index([createdAt])
+}
+
+enum MatchedInterview {
+  YES
+  PARTLY
+  NO
+}
+
+model Feedback {
+  id        String           @id @default(cuid())
+  packetId  String
+  packet    Packet           @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  userEmail String
+  stars     Int
+  matched   MatchedInterview
+  comment   String?          @db.Text
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  syncedAt  DateTime?
+
+  @@unique([packetId, userEmail])
+  @@index([packetId])
+}
+
+// ---------------------------------------------------------------------------
+// Caches / singletons
+// ---------------------------------------------------------------------------
+
+model SheetSnapshot {
+  id        String   @id @default(cuid())
+  tab       String   @unique
+  rows      Json
+  fetchedAt DateTime @default(now())
+}
+
+model SyncState {
+  id                 String    @id @default("singleton")
+  lastReadsSyncAt    DateTime?
+  lastFeedbackSyncAt DateTime?
+}

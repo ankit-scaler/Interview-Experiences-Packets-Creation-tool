@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 24% 96.5%;
+    --foreground: 224 24% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 24% 14%;
+    --muted: 220 16% 93%;
+    --muted-foreground: 222 12% 42%;
+    --border: 220 16% 86%;
+    --input: 220 14% 84%;
+    --primary: 245 62% 52%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 220 20% 92%;
+    --accent-foreground: 224 24% 14%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 55% 38%;
+    --ring: 245 62% 52%;
+    --radius: 0.6rem;
+  }
+
+  .dark {
+    --background: 226 32% 6.5%;
+    --foreground: 220 22% 93%;
+    --card: 224 24% 11.5%;
+    --card-foreground: 220 22% 93%;
+    --muted: 224 20% 17%;
+    --muted-foreground: 220 14% 64%;
+    --border: 224 17% 22%;
+    --input: 224 17% 26%;
+    --primary: 245 78% 70%;
+    --primary-foreground: 226 32% 8%;
+    --accent: 224 20% 18%;
+    --accent-foreground: 220 22% 93%;
+    --destructive: 0 64% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 46% 54%;
+    --ring: 245 78% 70%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  /* App loader — continuous indeterminate ring (rotation + sweeping arc). */
+  @keyframes loader-rotate {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes loader-dash {
+    0% {
+      stroke-dasharray: 1 126;
+      stroke-dashoffset: 0;
+    }
+    50% {
+      stroke-dasharray: 88 126;
+      stroke-dashoffset: -20;
+    }
+    100% {
+      stroke-dasharray: 88 126;
+      stroke-dashoffset: -112;
+    }
+  }
+  .loader-ring {
+    animation: loader-rotate 1.7s linear infinite;
+  }
+  .loader-arc {
+    animation: loader-dash 1.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .loader-ring {
+      animation-duration: 3s;
+    }
+    .loader-arc {
+      animation: none;
+      stroke-dasharray: 88 126;
+    }
+  }
+  /* Soft elevation for cards on the reading surface. */
+  .elev {
+    box-shadow:
+      0 1px 2px hsl(224 24% 14% / 0.04),
+      0 1px 3px hsl(224 24% 14% / 0.06);
+  }
+  .dark .elev {
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.3),
+      0 1px 3px hsl(0 0% 0% / 0.2);
+  }
+}
