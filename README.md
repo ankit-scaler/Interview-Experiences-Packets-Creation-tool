@@ -17,7 +17,7 @@ and whether to use the sheet only or sheet + web. A resumable job then:
    the deterministic match is already clear).
 3. **Improves readability** of rough questions (original + improved both kept).
 4. **Researches the web** (Sheet + web mode only) using the manual packet prompt,
-   restricted to LeetCode / GfG / Naukri / LinkedIn / AmbitionBox / Medium.
+   restricted to LeetCode / GfG / LinkedIn / Medium (each selectable per packet).
 5. **Merges & de-duplicates** (trigram similarity, LLM tie-break for borderline).
 6. **Names the rounds** (`R1` → "DSA Round · 1 hour", inferred from content).
 7. **Adds JD spillover** — ~10 questions per JD tech that isn't otherwise covered.

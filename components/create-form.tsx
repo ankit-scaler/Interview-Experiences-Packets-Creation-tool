@@ -41,7 +41,6 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
     stack: "",
     location: "India",
     sourceMode: llmReady ? "SHEET_PLUS_WEB" : "SHEET_ONLY",
-    allowHigherCost: false,
   });
   const [jdText, setJdText] = useState("");
   const [jdFileName, setJdFileName] = useState<string | null>(null);
@@ -380,15 +379,6 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
             </p>
           </div>
         )}
-
-        <label className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={form.allowHigherCost}
-            onChange={(e) => set("allowHigherCost", e.target.checked)}
-          />
-          Allow this run to exceed the default LLM cost limit
-        </label>
       </div>
 
       {error && (

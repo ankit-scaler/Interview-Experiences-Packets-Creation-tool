@@ -7,7 +7,6 @@ function webPlugin(domains: string[]): WebPlugin {
     id: "web",
     include_domains: domains,
     max_results: env.linkSearchMaxResults,
-    engine: env.webSearchEngine as WebPlugin["engine"],
   };
 }
 

@@ -77,10 +77,8 @@ export const env = {
   // All models are reached through OpenRouter (OpenAI-compatible gateway).
   openRouterApiKey: optional("OPENROUTER_API_KEY"),
   openRouterBaseUrl: optional("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
-  llmModel: optional("LLM_MODEL", "anthropic/claude-sonnet-5"),
+  llmModel: optional("LLM_MODEL", "anthropic/claude-sonnet-4.6"),
   llmModelCheap: optional("LLM_MODEL_CHEAP", "anthropic/claude-haiku-4.5"),
-  /** OpenRouter web-search engine; "exa" is the cheapest general option. */
-  webSearchEngine: optional("WEB_SEARCH_ENGINE", "exa"),
   maxPacketCostUsd: Number(optional("MAX_PACKET_COST_USD", "0.5")),
   // Web searches are billed per request ($0.01 each) — these are the main cost dials.
   webSearchMaxResults: Number(optional("WEB_SEARCH_MAX_RESULTS", "5")),

@@ -15,9 +15,7 @@ export interface WebSource {
 export const WEB_SOURCES: WebSource[] = [
   { id: "leetcode", label: "LeetCode", domains: ["leetcode.com"], practice: true, hint: "Problems + company tags" },
   { id: "geeksforgeeks", label: "GeeksforGeeks", domains: ["geeksforgeeks.org"], practice: true, hint: "Interview experiences" },
-  { id: "naukri", label: "Naukri", domains: ["naukri.com"], hint: "Candidate reviews" },
   { id: "linkedin", label: "LinkedIn", domains: ["linkedin.com"], hint: "Interview posts" },
-  { id: "ambitionbox", label: "AmbitionBox", domains: ["ambitionbox.com"], hint: "Interview Q&A" },
   { id: "medium", label: "Medium", domains: ["medium.com"], hint: "Write-ups" },
 ];
 

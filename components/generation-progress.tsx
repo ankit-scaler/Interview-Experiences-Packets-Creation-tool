@@ -82,11 +82,22 @@ export function GenerationProgress({
   }, [packetId, router]);
 
   useEffect(() => {
-    if (initialActive) drive();
+    if (initialActive) {
+      drive();
+    } else {
+      // Not driving, but still fetch once so a FAILED / finished job renders
+      // (its error + Retry button) instead of the component showing nothing.
+      fetch(`/api/packets/${packetId}/job`)
+        .then((r) => r.json())
+        .then((s) => {
+          if (s.job) setJob(s.job);
+        })
+        .catch(() => {});
+    }
     return () => {
       cancelled.current = true;
     };
-  }, [initialActive, drive]);
+  }, [initialActive, drive, packetId]);
 
   if (!running && (!job || job.status === "SUCCEEDED")) {
     if (!job) return null;

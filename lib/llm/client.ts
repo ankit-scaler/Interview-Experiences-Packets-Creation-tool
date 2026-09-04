@@ -34,12 +34,12 @@ export class LlmDisabledError extends Error {
   }
 }
 
-/** OpenRouter web-search plugin config (domain-restricted). */
+/** OpenRouter web-search plugin config (domain-restricted). OpenRouter picks the
+ *  search engine automatically — native provider search where available. */
 export interface WebPlugin {
   id: "web";
   include_domains?: string[];
   max_results?: number;
-  engine?: "native" | "exa" | "parallel" | "perplexity";
 }
 
 export interface CompleteOptions {
