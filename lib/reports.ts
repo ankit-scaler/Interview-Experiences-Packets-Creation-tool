@@ -32,11 +32,15 @@ function packetUrl(slug: string) {
   return `${env.appUrl.replace(/\/$/, "")}/p/${slug}`;
 }
 
+/** Days covered by the dashboard's default window (the "7D" preset). */
+export const DEFAULT_RANGE_DAYS = 7;
+
 export function parseRange(fromStr?: string | null, toStr?: string | null): DateRange {
   const to = toStr ? new Date(`${toStr}T23:59:59.999`) : new Date();
   const from = fromStr
     ? new Date(`${fromStr}T00:00:00`)
-    : new Date(to.getTime() - 30 * 24 * 3600 * 1000);
+    : // Inclusive of today, so "7D" spans today and the 6 days before it.
+      new Date(to.getTime() - (DEFAULT_RANGE_DAYS - 1) * 24 * 3600 * 1000);
   return { from, to, fromDay: utcMidnight(from), toDay: utcMidnight(to) };
 }
 
@@ -122,7 +126,15 @@ async function packetsNoReads({ to, fromDay, toDay }: DateRange): Promise<Report
   };
 }
 
-/** LLM spend per packet within the range. */
+/**
+ * LLM spend per packet within the range, plus all-time consumption efficiency.
+ *
+ * The token/cost columns are scoped to the picked range; the trailing columns
+ * are deliberately all-time (lifetime packet spend against every read it has
+ * ever had), because a cost-per-read ratio built from a 7-day window would
+ * divide this week's reads by a packet generated last month. Headers say which
+ * is which.
+ */
 async function llmCostByPacket({ from, to }: DateRange): Promise<Report> {
   const calls = await db.llmCall.findMany({
     where: { createdAt: { gte: from, lte: to }, packetId: { not: null } },
@@ -138,6 +150,28 @@ async function llmCostByPacket({ from, to }: DateRange): Promise<Report> {
     e.cachedTok += c.cachedInputTokens;
     byPacket.set(c.packet.slug, e);
   }
+
+  // All-time lifetime spend + reads for every packet that appears above.
+  const packets = await db.packet.findMany({
+    where: { slug: { in: [...byPacket.keys()] } },
+    select: {
+      slug: true,
+      lifetimeCostUsd: true,
+      reads: { where: { NOT: NOT_INTERNAL }, select: { userEmail: true, readDays: true } },
+    },
+  });
+  const lifetime = new Map(
+    packets.map((p) => [
+      p.slug,
+      {
+        cost: p.lifetimeCostUsd,
+        reads: p.reads.reduce((n, r) => n + r.readDays, 0),
+        learners: new Set(p.reads.map((r) => r.userEmail.toLowerCase())).size,
+      },
+    ]),
+  );
+  const per = (cost: number, n: number) => (n > 0 ? `$${(cost / n).toFixed(4)}` : "—");
+
   return {
     key: "llm-cost",
     title: "LLM cost by packet",
@@ -148,19 +182,32 @@ async function llmCostByPacket({ from, to }: DateRange): Promise<Report> {
       "Cached input",
       "Output tokens",
       "Cost (USD)",
+      "Lifetime cost (all-time)",
+      "Reads (all-time)",
+      "Unique learners (all-time)",
+      "Cost / read (all-time)",
+      "Cost / learner (all-time)",
       "Packet link",
     ],
     rows: [...byPacket.values()]
       .sort((a, b) => b.cost - a.cost)
-      .map((e) => [
-        e.company,
-        e.role,
-        e.inTok,
-        e.cachedTok,
-        e.outTok,
-        `$${e.cost.toFixed(4)}`,
-        packetUrl(e.slug),
-      ]),
+      .map((e) => {
+        const lt = lifetime.get(e.slug) ?? { cost: 0, reads: 0, learners: 0 };
+        return [
+          e.company,
+          e.role,
+          e.inTok,
+          e.cachedTok,
+          e.outTok,
+          `$${e.cost.toFixed(4)}`,
+          `$${lt.cost.toFixed(4)}`,
+          lt.reads,
+          lt.learners,
+          per(lt.cost, lt.reads),
+          per(lt.cost, lt.learners),
+          packetUrl(e.slug),
+        ];
+      }),
   };
 }
 
@@ -258,7 +305,7 @@ async function vaultClicks({ from, to }: DateRange): Promise<Report> {
 }
 
 /** One row per learner × packet — the single "who read what" view. */
-async function readLog({ from, to }: DateRange): Promise<Report> {
+async function learnerPacketConsumption({ from, to }: DateRange): Promise<Report> {
   const reads = await db.packetRead.findMany({
     where: {
       OR: [{ firstReadAt: { gte: from, lte: to } }, { lastReadAt: { gte: from, lte: to } }],
@@ -271,8 +318,8 @@ async function readLog({ from, to }: DateRange): Promise<Report> {
     orderBy: { lastReadAt: "desc" },
   });
   return {
-    key: "read-log",
-    title: "Read log (learner × packet)",
+    key: "learner-packet-consumption",
+    title: "Learner × Packet Consumption",
     headers: [
       "Learner email",
       "Company",
@@ -282,6 +329,7 @@ async function readLog({ from, to }: DateRange): Promise<Report> {
       "Last read",
       "Days read",
       "Time spent",
+      "Scroll %",
       "Packet link",
     ],
     rows: reads.map((r) => [
@@ -293,54 +341,8 @@ async function readLog({ from, to }: DateRange): Promise<Report> {
       formatDate(r.lastReadAt),
       r.readDays,
       formatDuration(r.days.reduce((n, d) => n + d.seconds, 0)),
+      `${r.scrollPct}%`,
       packetUrl(r.packet.slug),
-    ]),
-  };
-}
-
-/** Raw read-day rows (learner × packet × day × seconds). */
-async function readSessionsRaw({ fromDay, toDay }: DateRange): Promise<Report> {
-  const days = await db.packetReadDay.findMany({
-    where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
-    include: { packetRead: { include: { packet: { select: { company: true, role: true, slug: true } } } } },
-    orderBy: { day: "desc" },
-  });
-  return {
-    key: "read-sessions",
-    title: "Read sessions (raw)",
-    headers: ["Day", "Learner email", "Company", "Role", "Seconds", "Packet link"],
-    rows: days.map((d) => [
-      formatDate(d.day),
-      d.packetRead.userEmail,
-      d.packetRead.packet.company,
-      d.packetRead.packet.role,
-      d.seconds,
-      packetUrl(d.packetRead.packet.slug),
-    ]),
-  };
-}
-
-/**
- * One row per learner × packet × day — every read that happened, with the time
- * spent that day. Mirrored to the "Daily all reads tracker" tab and refreshed on
- * the nightly sync.
- */
-async function dailyReads({ fromDay, toDay }: DateRange): Promise<Report> {
-  const days = await db.packetReadDay.findMany({
-    where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
-    include: { packetRead: { include: { packet: { select: { company: true, role: true, slug: true } } } } },
-    orderBy: [{ day: "desc" }],
-  });
-  return {
-    key: "daily-reads",
-    title: "Daily all reads tracker",
-    headers: ["Packet Name", "Link", "Email", "Date Read", "Time Spent"],
-    rows: days.map((d) => [
-      `${d.packetRead.packet.company} — ${d.packetRead.packet.role}`,
-      packetUrl(d.packetRead.packet.slug),
-      d.packetRead.userEmail,
-      formatDate(d.day),
-      formatDuration(d.seconds),
     ]),
   };
 }
@@ -410,15 +412,15 @@ export async function packetRoster(
 export const REPORTS: Record<string, (r: DateRange) => Promise<Report>> = {
   "packets-created": packetsCreated,
   reads: readsByPacket,
-  "read-log": readLog,
+  "learner-packet-consumption": learnerPacketConsumption,
   "no-reads": packetsNoReads,
   "llm-cost": llmCostByPacket,
+  // Not mirrored to Sheets (see TAB_FOR) — kept for the dashboard stat cards
+  // and their CSV downloads.
   "time-spent": timeSpentByLearnerPacket,
   "repeat-reads": repeatReaders,
   feedback: feedbackReport,
   "vault-clicks": vaultClicks,
-  "read-sessions": readSessionsRaw,
-  "daily-reads": dailyReads,
   "packet-roster": (r) => packetRoster(r),
 };
 

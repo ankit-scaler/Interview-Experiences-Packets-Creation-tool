@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, PlusCircle, BarChart3 } from "lucide-react";
+import { FileText, PlusCircle, BarChart3, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/components/auth-buttons";
@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/packets", label: "Packets", icon: FileText },
   { href: "/create", label: "Create", icon: PlusCircle },
   { href: "/tracking", label: "Tracking", icon: BarChart3 },
+  { href: "/activity", label: "Activity", icon: History },
 ];
 
 export function AdminNav({ email }: { email?: string | null }) {

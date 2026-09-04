@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiError, guardAdmin, json } from "@/lib/api";
 import { findOrCreatePacket, startGenerationJob } from "@/lib/generation/create";
 import { ALL_SOURCE_IDS } from "@/lib/web-sources";
+import { logActivity } from "@/lib/activity";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,13 @@ export async function POST(req: Request) {
 
   const { packet, created } = await findOrCreatePacket(parsed.data, guard.user.id);
   const jobStarted = await startGenerationJob(packet.id, guard.user.id);
+  await logActivity({
+    actorEmail: guard.user.email,
+    // An existing packet reached through Create is an append, not a creation.
+    action: created ? "PACKET_CREATED" : "GENERATION_STARTED",
+    packet,
+    detail: `${parsed.data.track} · ${parsed.data.yoeBucket} · ${parsed.data.sourceMode}`,
+  });
 
   return json({
     packetId: packet.id,

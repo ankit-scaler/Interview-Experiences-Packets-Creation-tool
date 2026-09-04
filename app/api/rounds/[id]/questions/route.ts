@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiError, guardAdmin, json } from "@/lib/api";
 import { db } from "@/lib/db";
 import { normalizeQuestion } from "@/lib/normalize";
+import { activityPacketByRound, logActivity, truncate } from "@/lib/activity";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       problemLink: parsed.data.problemLink || null,
       problemLinkSource: parsed.data.problemLink ? "MANUAL" : null,
     },
+  });
+  await logActivity({
+    actorEmail: guard.user.email,
+    action: "QUESTION_ADDED",
+    packet: await activityPacketByRound(params.id),
+    detail: `${round.name}: ${truncate(parsed.data.text)}`,
   });
   return json({ question });
 }

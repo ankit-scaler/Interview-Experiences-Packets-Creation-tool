@@ -8,18 +8,19 @@ import { hasGoogleSheets } from "@/lib/env";
 import { buildAllReports, parseRange } from "@/lib/reports";
 import { replaceSheet } from "@/lib/sheets/tracking";
 
+/**
+ * Reports that get their own tab. A report absent from this map is NOT
+ * mirrored — `time-spent` and `repeat-reads` exist only to back the dashboard
+ * stat cards and their CSV downloads.
+ */
 const TAB_FOR: Record<string, string> = {
   "packets-created": "Packets Created",
   reads: "Reads by Packet",
-  "read-log": "Read Log",
+  "learner-packet-consumption": "Learner × Packet Consumption",
   "no-reads": "Packets No Reads",
   "llm-cost": "LLM Cost",
-  "time-spent": "Time Spent",
-  "repeat-reads": "Repeat Reads",
   feedback: "Feedback",
   "vault-clicks": "Vault Clicks",
-  "read-sessions": "Read Sessions",
-  "daily-reads": "Daily all reads tracker",
   "packet-roster": "Packet Directory",
 };
 
@@ -35,7 +36,10 @@ export async function syncAll(): Promise<{ ok: boolean; note?: string }[]> {
   const results: { ok: boolean; note?: string }[] = [];
 
   for (const r of reports) {
-    const tab = TAB_FOR[r.key] ?? r.title;
+    const tab = TAB_FOR[r.key];
+    // Unmapped reports are dashboard-only. Falling back to r.title here would
+    // silently recreate tabs that were deliberately retired.
+    if (!tab) continue;
     try {
       // eslint-disable-next-line no-await-in-loop
       await replaceSheet(tab, r.headers, r.rows);

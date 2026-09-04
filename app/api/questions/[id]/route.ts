@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiError, guardAdmin, json } from "@/lib/api";
 import { db } from "@/lib/db";
 import { normalizeQuestion } from "@/lib/normalize";
+import { activityPacketByQuestion, logActivity, truncate } from "@/lib/activity";
 
 export const runtime = "nodejs";
 
@@ -31,7 +32,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (parsed.data.order !== undefined) data.order = parsed.data.order;
   if (parsed.data.roundId !== undefined) data.roundId = parsed.data.roundId;
 
-  await db.question.update({ where: { id: params.id }, data });
+  const question = await db.question.update({ where: { id: params.id }, data });
+  await logActivity({
+    actorEmail: guard.user.email,
+    action: "QUESTION_EDITED",
+    packet: await activityPacketByQuestion(params.id),
+    detail: `${Object.keys(data).join(", ")} — ${truncate(question.displayText)}`,
+  });
   return json({ ok: true });
 }
 
@@ -41,6 +48,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   const q = await db.question.findUnique({ where: { id: params.id } });
   if (q) {
+    const packet = await activityPacketByQuestion(params.id);
     await db.$transaction([
       db.question.update({ where: { id: q.id }, data: { status: "REMOVED" } }),
       db.suppressedQuestion.upsert({
@@ -49,6 +57,12 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
         update: {},
       }),
     ]);
+    await logActivity({
+      actorEmail: guard.user.email,
+      action: "QUESTION_DELETED",
+      packet,
+      detail: truncate(q.displayText),
+    });
   }
   return json({ ok: true });
 }

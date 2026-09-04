@@ -1,5 +1,6 @@
 import { apiError, guardAdmin, json } from "@/lib/api";
 import { db } from "@/lib/db";
+import { logActivity } from "@/lib/activity";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       status: publish ? "PUBLISHED" : "DRAFT",
       publishedAt: publish ? new Date() : null,
     },
+  });
+  await logActivity({
+    actorEmail: guard.user.email,
+    action: publish ? "PACKET_PUBLISHED" : "PACKET_UNPUBLISHED",
+    packet,
   });
   return json({ ok: true, status: packet.status });
 }

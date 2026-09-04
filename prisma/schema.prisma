@@ -308,6 +308,9 @@ model PacketRead {
   firstReadAt DateTime @default(now())
   lastReadAt  DateTime @default(now())
   readDays    Int      @default(1)
+  // Furthest the learner has ever scrolled through this packet, 0-100. A packet
+  // shorter than the viewport counts as 100 (nothing left to scroll to).
+  scrollPct   Int      @default(0)
   syncedAt    DateTime?
 
   days PacketReadDay[]
@@ -358,6 +361,47 @@ model Feedback {
   syncedAt  DateTime?
 
   @@unique([packetId, userEmail])
+  @@index([packetId])
+}
+
+// ---------------------------------------------------------------------------
+// Admin activity log
+// ---------------------------------------------------------------------------
+
+enum AdminAction {
+  PACKET_CREATED
+  PACKET_EDITED
+  PACKET_DELETED
+  PACKET_PUBLISHED
+  PACKET_UNPUBLISHED
+  GENERATION_STARTED
+  REGENERATION_STARTED
+  ROUND_ADDED
+  ROUND_EDITED
+  ROUND_DELETED
+  QUESTION_ADDED
+  QUESTION_EDITED
+  QUESTION_DELETED
+}
+
+/**
+ * Who did what to which packet, and when. Written from the admin mutation
+ * routes only — learner activity lives in PacketRead / Feedback / VaultClick.
+ * `packetId` is nullable so a row survives its packet being deleted; the
+ * denormalised label keeps the entry readable afterwards.
+ */
+model AdminActivity {
+  id          String      @id @default(cuid())
+  actorEmail  String
+  action      AdminAction
+  packetId    String?
+  packetLabel String // "Company — Role", captured at write time
+  packetSlug  String?
+  detail      String? // short human summary, e.g. the round/question touched
+  createdAt   DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([actorEmail])
   @@index([packetId])
 }
 

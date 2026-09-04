@@ -5,7 +5,13 @@ import { NextResponse, type NextRequest } from "next/server";
  * before the page (and its DB queries) run. Real authorization — admin vs learner,
  * session validity — is enforced in the route/layout with the Prisma adapter.
  */
-const PROTECTED = [/^\/packets(\/|$)/, /^\/create(\/|$)/, /^\/tracking(\/|$)/, /^\/p\//];
+const PROTECTED = [
+  /^\/packets(\/|$)/,
+  /^\/create(\/|$)/,
+  /^\/tracking(\/|$)/,
+  /^\/activity(\/|$)/,
+  /^\/p\//,
+];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -23,5 +29,11 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/packets/:path*", "/create/:path*", "/tracking/:path*", "/p/:path*"],
+  matcher: [
+    "/packets/:path*",
+    "/create/:path*",
+    "/tracking/:path*",
+    "/activity/:path*",
+    "/p/:path*",
+  ],
 };

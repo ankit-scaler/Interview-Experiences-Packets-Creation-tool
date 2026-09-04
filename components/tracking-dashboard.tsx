@@ -1,13 +1,51 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Download, RefreshCw, Search, Star, Loader2 } from "lucide-react";
 import type { TrackingSummary } from "@/lib/tracking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MATCHED_LABEL } from "@/lib/labels";
-import { formatUsd, formatDate, formatDateTime, formatDuration } from "@/lib/utils";
+import { cn, formatUsd, formatDate, formatDateTime, formatDuration, isoDate } from "@/lib/utils";
+import { TrackingCharts } from "@/components/tracking-charts";
+
+/**
+ * Presets for the range picker. Days are inclusive of today, and `isDefault`
+ * must stay in step with DEFAULT_RANGE_DAYS in lib/reports.ts — that is what the
+ * server falls back to when the URL carries no range. (Not imported from there:
+ * lib/reports pulls in Prisma, which must not reach the client bundle.)
+ */
+const PRESETS = [
+  { label: "1D", days: 1, isDefault: false },
+  { label: "7D", days: 7, isDefault: true },
+  { label: "30D", days: 30, isDefault: false },
+];
+
+function presetRange(days: number) {
+  const to = new Date();
+  const from = new Date(to.getTime() - (days - 1) * 24 * 3600 * 1000);
+  return { from: isoDate(from), to: isoDate(to) };
+}
+
+/**
+ * Which preset the URL's from/to correspond to.
+ *
+ * Compared against the URL rather than the summary's own from/to: the server
+ * reports those as UTC dates while presets here are built from the viewer's
+ * local clock, so the two disagree for part of every day in a +05:30 timezone.
+ * The URL holds exactly the strings a preset click wrote, so this is exact.
+ * No range in the URL at all means the server default — which is 7D — applied.
+ */
+function activePreset(from: string | null, to: string | null): string | null {
+  if (!from && !to) return PRESETS.find((p) => p.isDefault)?.label ?? null;
+  return (
+    PRESETS.find((p) => {
+      const r = presetRange(p.days);
+      return r.from === from && r.to === to;
+    })?.label ?? null
+  );
+}
 
 export function TrackingDashboard({
   data,
@@ -19,6 +57,7 @@ export function TrackingDashboard({
   packetPairs: { company: string; role: string }[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [from, setFrom] = useState(data.from);
   const [to, setTo] = useState(data.to);
   const [syncing, setSyncing] = useState(false);
@@ -26,10 +65,19 @@ export function TrackingDashboard({
 
   const qs = `from=${from}&to=${to}`;
   const dl = (report: string) => `/api/tracking/export?report=${report}&${qs}`;
+  // Read from the URL, not the local input state, so editing a date field
+  // doesn't highlight a preset that hasn't been applied yet.
+  const preset = activePreset(searchParams.get("from"), searchParams.get("to"));
+
+  function go(nextFrom: string, nextTo: string) {
+    setFrom(nextFrom);
+    setTo(nextTo);
+    router.push(`/tracking?from=${nextFrom}&to=${nextTo}`);
+    router.refresh(); // searchParam-only nav can serve a stale RSC payload otherwise
+  }
 
   function applyRange() {
-    router.push(`/tracking?${qs}`);
-    router.refresh(); // searchParam-only nav can serve a stale RSC payload otherwise
+    go(from, to);
   }
 
   async function sync() {
@@ -58,17 +106,6 @@ export function TrackingDashboard({
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <label className="text-xs">
-            From
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1 h-9" />
-          </label>
-          <label className="text-xs">
-            To
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 h-9" />
-          </label>
-          <Button size="sm" onClick={applyRange}>
-            Apply
-          </Button>
           <Button variant="outline" size="sm" onClick={sync} disabled={syncing}>
             {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Sync to Sheets
@@ -83,7 +120,57 @@ export function TrackingDashboard({
       </div>
       {syncMsg && <p className="text-xs text-muted-foreground">{syncMsg}</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <LlmSpend overview={data.llmOverview} href={dl("llm-cost")} />
+
+      <section className="rounded-lg border border-border bg-card/40 p-4">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">
+              Showing: {preset ? PRESET_LABEL[preset] : `${formatDate(data.from)} — ${formatDate(data.to)}`}
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Everything in this box follows the range below.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex gap-1">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => {
+                    const r = presetRange(p.days);
+                    go(r.from, r.to);
+                  }}
+                  className={cn(
+                    "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                    preset === p.label
+                      ? "border-foreground/20 bg-accent text-accent-foreground"
+                      : "border-border text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <label className="text-xs">
+              From
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1 h-9" />
+            </label>
+            <label className="text-xs">
+              To
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 h-9" />
+            </label>
+            <Button size="sm" onClick={applyRange}>
+              Apply
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+        <TrackingCharts daily={data.daily} />
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Packets created / updated"
           value={data.packetsCreated}
@@ -97,10 +184,10 @@ export function TrackingDashboard({
           href={dl("reads")}
         />
         <StatCard
-          label="Read log (learner × packet)"
+          label="Learner × packet consumption"
           value={data.readLogCount}
           sub="who read what"
-          href={dl("read-log")}
+          href={dl("learner-packet-consumption")}
         />
         <StatCard
           label="Published packets, no reads"
@@ -109,6 +196,8 @@ export function TrackingDashboard({
           href={dl("no-reads")}
         />
         <StatCard label="LLM cost" value={formatUsd(data.llmCost)} sub="in this date range" href={dl("llm-cost")} />
+        {/* time-spent and repeat-reads are no longer mirrored to Sheets, but
+            both reports still back these cards and their CSV downloads. */}
         <StatCard
           label="Avg time / learner · packet"
           value={formatDuration(data.avgSecondsPerLearnerPacket)}
@@ -173,7 +262,7 @@ export function TrackingDashboard({
         </Panel>
       </div>
 
-      <Panel title={`Read log — learner × packet (${data.readLog.length})`} href={dl("read-log")}>
+      <Panel title="Learner × Packet Consumption" href={dl("learner-packet-consumption")}>
         <div className="max-h-[28rem] overflow-auto rounded-md border border-border">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-muted">
@@ -184,6 +273,7 @@ export function TrackingDashboard({
                 <th className="px-3 py-2 font-medium">Last read</th>
                 <th className="px-3 py-2 font-medium">Days</th>
                 <th className="px-3 py-2 font-medium">Time</th>
+                <th className="px-3 py-2 font-medium">Scroll</th>
               </tr>
             </thead>
             <tbody>
@@ -199,11 +289,14 @@ export function TrackingDashboard({
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{r.lastRead}</td>
                   <td className="px-3 py-2">{r.days}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{r.timeSpent}</td>
+                  <td className="px-3 py-2">
+                    <ScrollBar pct={r.scrollPct} />
+                  </td>
                 </tr>
               ))}
               {!data.readLog.length && (
                 <tr>
-                  <td className="px-3 py-4 text-sm text-muted-foreground" colSpan={6}>
+                  <td className="px-3 py-4 text-sm text-muted-foreground" colSpan={7}>
                     No reads in this date range
                   </td>
                 </tr>
@@ -212,10 +305,118 @@ export function TrackingDashboard({
           </table>
         </div>
       </Panel>
+        </div>
+      </section>
 
       <PacketDirectory pairs={packetPairs} />
 
       <LearnerLookup />
+    </div>
+  );
+}
+
+const PRESET_LABEL: Record<string, string> = {
+  "1D": "today",
+  "7D": "last 7 days",
+  "30D": "last 30 days",
+};
+
+/** How far through the packet the learner got, as a bar plus the number. */
+function ScrollBar({ pct }: { pct: number }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="h-1.5 w-10 overflow-hidden rounded-full bg-muted">
+        <span
+          className="block h-full rounded-full bg-[var(--chart-1)]"
+          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+        />
+      </span>
+      <span className="text-xs tabular-nums text-muted-foreground">{pct}%</span>
+    </span>
+  );
+}
+
+/**
+ * All-time LLM spend. Deliberately outside the range card — these answer "what
+ * has this tool cost us", so they must not move when the picker does.
+ */
+function LlmSpend({
+  overview,
+  href,
+}: {
+  overview: TrackingSummary["llmOverview"];
+  href: string;
+}) {
+  const {
+    avgPerMonth,
+    completeMonths,
+    totalSinceInception,
+    publishedPackets,
+    costPerPublishedPacket,
+    costPerPublishedPacketInclWaste,
+  } = overview;
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold">LLM spend</h2>
+          <p className="text-[11px] text-muted-foreground">
+            All-time — not affected by the date range below.
+          </p>
+        </div>
+        <a href={href} download className="text-muted-foreground hover:text-foreground">
+          <Download className="h-3.5 w-3.5" />
+        </a>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Figure
+          label="Avg / month"
+          value={avgPerMonth === null ? "—" : formatUsd(avgPerMonth)}
+          sub={
+            avgPerMonth === null
+              ? "needs one full calendar month"
+              : `across ${completeMonths} complete month${completeMonths === 1 ? "" : "s"}`
+          }
+        />
+        <Figure
+          label="Total since inception"
+          value={formatUsd(totalSinceInception)}
+          sub="every LLM call ever made"
+        />
+        <div>
+          <p className="text-xs text-muted-foreground">Avg / packet</p>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-xl font-semibold">
+              {costPerPublishedPacket === null ? "—" : formatUsd(costPerPublishedPacket)}
+            </span>
+            <span className="text-xs text-muted-foreground">shipped unit cost</span>
+          </div>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-sm font-medium text-muted-foreground">
+              {costPerPublishedPacketInclWaste === null
+                ? "—"
+                : formatUsd(costPerPublishedPacketInclWaste)}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              incl. unpublished draft spend
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            over {publishedPackets} published packet{publishedPackets === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Figure({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-semibold">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{sub}</p>
     </div>
   );
 }

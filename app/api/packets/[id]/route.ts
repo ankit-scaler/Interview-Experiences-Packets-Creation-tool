@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, guardAdmin, json } from "@/lib/api";
 import { db } from "@/lib/db";
+import { activityPacket, logActivity } from "@/lib/activity";
 
 export const runtime = "nodejs";
 
@@ -41,12 +42,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       ),
     );
   }
+
+  const changed = [
+    ...Object.keys(packetFields),
+    ...(rounds?.length ? [`${rounds.length} round${rounds.length === 1 ? "" : "s"}`] : []),
+  ];
+  if (changed.length) {
+    await logActivity({
+      actorEmail: guard.user.email,
+      action: "PACKET_EDITED",
+      packet: await activityPacket(params.id),
+      detail: changed.join(", "),
+    });
+  }
   return json({ ok: true });
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const guard = await guardAdmin();
   if (guard.error) return guard.error;
+  // Read identity before the delete — afterwards there is nothing left to name.
+  const packet = await activityPacket(params.id);
   await db.packet.delete({ where: { id: params.id } });
+  await logActivity({ actorEmail: guard.user.email, action: "PACKET_DELETED", packet });
   return json({ ok: true });
 }

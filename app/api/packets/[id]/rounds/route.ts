@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, guardAdmin, json } from "@/lib/api";
 import { db } from "@/lib/db";
+import { activityPacket, logActivity } from "@/lib/activity";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       order: (max._max.order ?? -1) + 1,
       sheetKey: `manual-${Date.now()}`,
     },
+  });
+  await logActivity({
+    actorEmail: guard.user.email,
+    action: "ROUND_ADDED",
+    packet: await activityPacket(params.id),
+    detail: round.name,
   });
   return json({ round });
 }
