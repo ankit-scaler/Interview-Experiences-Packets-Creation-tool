@@ -21,6 +21,10 @@ export const WEB_SOURCES: WebSource[] = [
 
 export const ALL_SOURCE_IDS = WEB_SOURCES.map((s) => s.id);
 
+/** Sources ticked by default on the create form. LinkedIn is opt-in — its posts
+ * are the noisiest of the four. */
+export const DEFAULT_SOURCE_IDS = ["leetcode", "geeksforgeeks", "medium"];
+
 /** Source ids that can yield a practice link (LeetCode / GfG). */
 export const PRACTICE_SOURCE_IDS = WEB_SOURCES.filter((s) => s.practice).map((s) => s.id);
 

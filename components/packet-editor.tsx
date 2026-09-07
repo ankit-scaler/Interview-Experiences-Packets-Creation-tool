@@ -152,7 +152,7 @@ export function PacketEditor({
           ) : (
             <Badge variant="warning">Draft</Badge>
           )}
-          <CopyLinkButton url={learnerUrl} />
+          <CopyLinkButton url={learnerUrl} disabled={status !== "PUBLISHED"} />
           <Button
             variant="outline"
             size="sm"

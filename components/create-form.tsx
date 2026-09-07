@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Upload, CornerDownRight, Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { WEB_SOURCES, ALL_SOURCE_IDS, PRACTICE_SOURCE_IDS } from "@/lib/web-sources";
+import {
+  WEB_SOURCES,
+  ALL_SOURCE_IDS,
+  DEFAULT_SOURCE_IDS,
+  PRACTICE_SOURCE_IDS,
+} from "@/lib/web-sources";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +42,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
     track: "",
     company: "",
     role: "",
-    yoeBucket: "LT2",
+    yoeBucket: "B2_5",
     stack: "",
     location: "India",
     sourceMode: llmReady ? "SHEET_PLUS_WEB" : "SHEET_ONLY",
@@ -46,7 +51,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
   const [jdFileName, setJdFileName] = useState<string | null>(null);
   const [suggest, setSuggest] = useState<Suggest>({ companies: [], existing: [] });
   const [loadingSuggest, setLoadingSuggest] = useState(false);
-  const [sources, setSources] = useState<string[]>(ALL_SOURCE_IDS);
+  const [sources, setSources] = useState<string[]>(DEFAULT_SOURCE_IDS);
   const practiceOn = sources.some((s) => PRACTICE_SOURCE_IDS.includes(s));
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {

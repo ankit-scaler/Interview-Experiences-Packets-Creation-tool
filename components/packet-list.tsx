@@ -88,9 +88,10 @@ export function PacketList({ packets, appUrl }: { packets: PacketListItem[]; app
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {p.status === "PUBLISHED" ? (
-                  <CopyLinkButton url={`${appUrl.replace(/\/$/, "")}/p/${p.slug}`} />
-                ) : null}
+                <CopyLinkButton
+                  url={`${appUrl.replace(/\/$/, "")}/p/${p.slug}`}
+                  disabled={p.status !== "PUBLISHED"}
+                />
                 <Link
                   href={`/packets/${p.id}`}
                   className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-accent"
