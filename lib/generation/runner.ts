@@ -515,7 +515,7 @@ export async function runStep(jobId: string): Promise<JobStep> {
             );
             draftRounds.push({
               key: "jd-spillover",
-              name: "Spillover Questions from the JD",
+              name: "Frequently Asked Question Based on JD",
               duration: null,
               isSpillover: true,
               questions: questions.slice(0, MAX_QUESTIONS_PER_ROUND),

@@ -267,7 +267,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
             setJdFileName(null);
           }}
           rows={5}
-          placeholder="Paste the JD here, or upload a file below. Techs named here that aren't covered by the questions get a Spillover section."
+          placeholder="Paste the JD here, or upload a file below. Techs named here that aren't covered by the questions get a Frequently Asked Question Based on JD section."
         />
         <div className="flex items-center gap-2">
           <input
