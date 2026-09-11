@@ -111,6 +111,25 @@
       stroke-dasharray: 88 126;
     }
   }
+  /* One-time sparkle pulse for the vault CTA bar, on mount. */
+  @keyframes sparkle-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.35);
+    }
+  }
+  .animate-sparkle-pulse {
+    animation: sparkle-pulse 600ms ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-sparkle-pulse {
+      animation: none;
+    }
+  }
+
   /* Soft elevation for cards on the reading surface. */
   .elev {
     box-shadow:
