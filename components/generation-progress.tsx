@@ -140,6 +140,13 @@ export function GenerationProgress({
         <p className="mt-2 text-xs text-destructive">{job.error}</p>
       )}
 
+      {failed && statLine(job?.stats) && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Questions generated before the failure have been saved to the packet below — retry to
+          pick up where it left off.
+        </p>
+      )}
+
       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
         <span>{statLine(job?.stats)}</span>
         <button className="underline" onClick={() => setShowLog((v) => !v)}>

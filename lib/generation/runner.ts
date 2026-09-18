@@ -29,6 +29,18 @@ const STEP_ORDER: JobStep[] = [
   "DONE",
 ];
 
+/**
+ * Steps at/after MERGE operate on `scratch.draftRounds` only once it has been
+ * deduped against the packet's existing questions there — so it's the earliest
+ * point where saving `scratch.draftRounds` to the DB on failure is safe.
+ */
+const PARTIAL_SAVE_STEPS = new Set<JobStep>([
+  "NAME_ROUNDS",
+  "JD_SPILLOVER",
+  "PROBLEM_LINKS",
+  "FINALIZE",
+]);
+
 const STEP_PROGRESS: Record<JobStep, number> = {
   LOAD_SHEET: 12,
   SCOPE_FILTER: 22,
@@ -587,11 +599,34 @@ export async function runStep(jobId: string): Promise<JobStep> {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+
+    // Best-effort: commit whatever rounds/questions the run had already
+    // produced (and paid for) before it failed, so a budget/rate-limit error
+    // doesn't throw away real progress. Only safe once `draftRounds` has been
+    // through MERGE's de-dupe pass — see PARTIAL_SAVE_STEPS.
+    let partialSaved = 0;
+    if (PARTIAL_SAVE_STEPS.has(step)) {
+      const draftRounds = (scratch.draftRounds ?? []).filter((r) => r.questions.length);
+      partialSaved = draftRounds.reduce((n, r) => n + r.questions.length, 0);
+      if (partialSaved) {
+        try {
+          await finalize(job, packet, scratch);
+        } catch {
+          partialSaved = 0;
+        }
+      }
+    }
+
     await db.generationJob.update({
       where: { id: jobId },
       data: { status: "FAILED", error: message, stepLabel: `Failed: ${STEP_LABEL[step]}` },
     });
-    await log(job, `ERROR: ${message}`);
+    await log(
+      job,
+      partialSaved
+        ? `ERROR: ${message} — kept ${partialSaved} question${partialSaved === 1 ? "" : "s"} generated before the failure.`
+        : `ERROR: ${message}`,
+    );
     throw err;
   }
 }
@@ -621,7 +656,7 @@ async function finalize(job: GenerationJob, packet: Packet, scratch: Scratch) {
     async (tx) => {
     const existingRounds = await tx.round.findMany({
       where: { packetId: packet.id },
-      include: { questions: { select: { id: true } } },
+      include: { questions: { select: { id: true, normalizedText: true, problemLink: true } } },
     });
     const byKey = new Map(existingRounds.map((r) => [r.sheetKey ?? roundKey(r.name), r]));
     let orderBase = existingRounds.length;
@@ -639,7 +674,7 @@ async function finalize(job: GenerationJob, packet: Packet, scratch: Scratch) {
             sheetKey: dr.key,
             questions: undefined,
           },
-          include: { questions: { select: { id: true } } },
+          include: { questions: { select: { id: true, normalizedText: true, problemLink: true } } },
         });
         byKey.set(dr.key, round);
       } else if (job.kind === "INITIAL") {
@@ -648,24 +683,48 @@ async function finalize(job: GenerationJob, packet: Packet, scratch: Scratch) {
           data: { name: dr.name, duration: dr.duration ?? null },
         });
       }
+
+      // finalize() can run twice for the same draft rounds — once as a
+      // best-effort partial save on failure, once more on a later successful
+      // retry — so skip questions already inserted (matched by normalized
+      // text) instead of re-creating them. Still backfill a problem link a
+      // prior partial save didn't have yet.
+      const existingByText = new Map(round.questions.map((q) => [q.normalizedText, q]));
+      const newQuestions: DraftQuestion[] = [];
+      for (const q of dr.questions) {
+        const existing = existingByText.get(q.normalizedText);
+        if (existing) {
+          if (!existing.problemLink && q.problemLink) {
+            await tx.question.update({
+              where: { id: existing.id },
+              data: { problemLink: q.problemLink, problemLinkSource: q.problemLinkSource ?? null },
+            });
+          }
+          continue;
+        }
+        newQuestions.push(q);
+      }
+
       const startOrder = round.questions.length;
-      await tx.question.createMany({
-        data: dr.questions.map((q, i) => ({
-          packetId: packet.id,
-          roundId: round!.id,
-          order: startOrder + i,
-          source: q.source,
-          originalText: q.originalText,
-          improvedText: q.text,
-          displayText: q.text,
-          problemLink: q.problemLink ?? null,
-          problemLinkSource: q.problemLinkSource ?? null,
-          normalizedText: q.normalizedText,
-          sheetRef: (q.sheetRef ?? undefined) as object | undefined,
-          occurrences: q.occurrences ?? 1,
-          lastAskedAt: q.latestTs ? new Date(q.latestTs) : null,
-        })),
-      });
+      if (newQuestions.length) {
+        await tx.question.createMany({
+          data: newQuestions.map((q, i) => ({
+            packetId: packet.id,
+            roundId: round!.id,
+            order: startOrder + i,
+            source: q.source,
+            originalText: q.originalText,
+            improvedText: q.text,
+            displayText: q.text,
+            problemLink: q.problemLink ?? null,
+            problemLinkSource: q.problemLinkSource ?? null,
+            normalizedText: q.normalizedText,
+            sheetRef: (q.sheetRef ?? undefined) as object | undefined,
+            occurrences: q.occurrences ?? 1,
+            lastAskedAt: q.latestTs ? new Date(q.latestTs) : null,
+          })),
+        });
+      }
     }
 
       await tx.packet.update({

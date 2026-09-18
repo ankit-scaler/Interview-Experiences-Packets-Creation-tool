@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,10 @@ const SOURCE_BADGE: Record<QSource, { label: string; variant: "secondary" | "def
   MANUAL: { label: "Manual", variant: "outline" },
 };
 
+// Only this admin sees the cost-limit override control — everyone else hits
+// the normal per-packet budget ceiling (see lib/generation/runner.ts).
+const COST_OVERRIDE_EMAIL = "ankit.mishra@scaler.com";
+
 async function api(url: string, method: string, body?: unknown) {
   const res = await fetch(url, {
     method,
@@ -87,17 +92,21 @@ export function PacketEditor({
   appUrl,
   llmReady,
   initialJobActive,
+  viewerEmail,
 }: {
   packet: PData;
   appUrl: string;
   llmReady: boolean;
   initialJobActive: boolean;
+  viewerEmail?: string | null;
 }) {
   const router = useRouter();
   const [rounds, setRounds] = useState(packet.rounds);
   const [status, setStatus] = useState(packet.status);
+  const [allowHigherCost, setAllowHigherCost] = useState(packet.allowHigherCost);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const canOverrideCost = viewerEmail?.toLowerCase() === COST_OVERRIDE_EMAIL;
 
   const learnerUrl = `${appUrl.replace(/\/$/, "")}/p/${packet.slug}`;
   const questionCount = useMemo(
@@ -172,6 +181,23 @@ export function PacketEditor({
             <RefreshCw className="h-4 w-4" />
             Pull new questions
           </Button>
+          {canOverrideCost && (
+            <Button
+              variant={allowHigherCost ? "secondary" : "outline"}
+              size="sm"
+              disabled={busy !== null}
+              onClick={() =>
+                run("costLimit", async () => {
+                  const next = !allowHigherCost;
+                  await api(`/api/packets/${packet.id}`, "PATCH", { allowHigherCost: next });
+                  setAllowHigherCost(next);
+                })
+              }
+            >
+              <Gauge className="h-4 w-4" />
+              {allowHigherCost ? "Cost limit: raised" : "Go past cost limit"}
+            </Button>
+          )}
           <Button
             size="sm"
             variant={status === "PUBLISHED" ? "secondary" : "default"}

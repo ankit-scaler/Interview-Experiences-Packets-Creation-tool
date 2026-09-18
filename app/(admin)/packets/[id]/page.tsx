@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPacketForEditor } from "@/lib/packets";
 import { env } from "@/lib/env";
+import { currentUser } from "@/auth";
 import { PacketEditor } from "@/components/packet-editor";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export default async function PacketEditorPage({
   params: { id: string };
   searchParams: { job?: string; append?: string };
 }) {
-  const packet = await getPacketForEditor(params.id);
+  const [packet, viewer] = await Promise.all([getPacketForEditor(params.id), currentUser()]);
   if (!packet) notFound();
 
   const costByPurpose: Record<string, number> = {};
@@ -32,6 +33,7 @@ export default async function PacketEditorPage({
       appUrl={env.appUrl}
       llmReady={Boolean(process.env.OPENROUTER_API_KEY)}
       initialJobActive={Boolean(jobActive)}
+      viewerEmail={viewer?.email ?? null}
       packet={{
         id: packet.id,
         slug: packet.slug,
