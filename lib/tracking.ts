@@ -156,7 +156,7 @@ async function llmOverview(): Promise<LlmOverview> {
   };
 }
 
-const num = (v: unknown) => Number(String(v).replace(/[$,]/g, "")) || 0;
+const num = (v: unknown) => Number(String(v).replace(/[$,%]/g, "")) || 0;
 
 /** Read a report cell by column header, so reordering headers can't silently break totals. */
 function col(report: Report | undefined, row: (string | number)[], header: string): unknown {
