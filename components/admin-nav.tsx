@@ -18,8 +18,8 @@ const LINKS = [
 export function AdminNav({ email }: { email?: string | null }) {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-1 px-4">
+    <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
         <Link href="/packets" className="mr-4 flex items-center gap-2">
           <ScalerLogo />
           <span className="hidden text-sm font-semibold text-muted-foreground sm:inline">
@@ -33,11 +33,12 @@ export function AdminNav({ email }: { email?: string | null }) {
               <Link
                 key={href}
                 href={href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   active
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
+                    ? "bg-subtle text-foreground shadow-[inset_0_-2px_0_hsl(var(--primary))]"
+                    : "text-muted-foreground hover:bg-subtle hover:text-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />

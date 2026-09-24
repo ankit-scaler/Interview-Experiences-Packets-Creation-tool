@@ -48,7 +48,7 @@ export function PacketList({ packets, appUrl }: { packets: PacketListItem[]; app
               key={f}
               onClick={() => setFilter(f)}
               className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                filter === f ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+                filter === f ? "bg-subtle text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {f}
@@ -60,7 +60,7 @@ export function PacketList({ packets, appUrl }: { packets: PacketListItem[]; app
       {shown.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           No packets{q || filter !== "All" ? " match your filters" : " yet"}.{" "}
-          <Link href="/create" className="text-primary underline">
+          <Link href="/create" className="text-accent underline underline-offset-2 hover:no-underline">
             Create one
           </Link>
           .
@@ -94,7 +94,7 @@ export function PacketList({ packets, appUrl }: { packets: PacketListItem[]; app
                 />
                 <Link
                   href={`/packets/${p.id}`}
-                  className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-accent"
+                  className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs font-medium hover:bg-subtle"
                 >
                   Open
                 </Link>

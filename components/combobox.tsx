@@ -101,15 +101,15 @@ export function Combobox({
       {showPanel && (
         <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-card p-1 text-sm shadow-lg">
           {loading && (
-            <li className="px-2 py-1.5 text-xs text-muted-foreground">Loading suggestions…</li>
+            <li className="px-2 py-2 text-xs text-muted-foreground">Loading suggestions…</li>
           )}
           {shown.map((o, i) => (
             <li key={o}>
               <button
                 type="button"
                 className={cn(
-                  "flex w-full items-center rounded px-2 py-1.5 text-left",
-                  i === active ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
+                  "flex w-full items-center rounded px-2 py-2 text-left",
+                  i === active ? "bg-subtle text-foreground" : "hover:bg-subtle/60",
                 )}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => {
@@ -122,12 +122,12 @@ export function Combobox({
             </li>
           ))}
           {total > shown.length && (
-            <li className="px-2 py-1.5 text-[11px] text-muted-foreground">
+            <li className="px-2 py-2 text-[11px] text-muted-foreground">
               +{total - shown.length} more — keep typing to narrow
             </li>
           )}
           {!loading && needle && !exact && emptyHint && (
-            <li className="border-t border-border px-2 py-1.5 text-xs text-muted-foreground">
+            <li className="border-t border-border px-2 py-2 text-xs text-muted-foreground">
               {emptyHint}
             </li>
           )}

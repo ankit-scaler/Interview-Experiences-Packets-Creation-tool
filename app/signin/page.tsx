@@ -27,14 +27,14 @@ export default async function SignInPage({
           <ScalerLogo className="h-7" />
         </div>
         {isLearnerLink ? (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <h1 className="text-xl font-semibold">Your interview packet is ready</h1>
             <p className="text-sm text-muted-foreground">
               Built from interviews that already happened.
             </p>
           </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <h1 className="text-xl font-semibold">Interview Packets</h1>
             <p className="text-sm text-muted-foreground">
               Sign in with your Google account to continue.

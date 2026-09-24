@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function PacketsPage() {
   const packets = await listPackets();
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold">Packets</h1>

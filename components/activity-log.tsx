@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import type { AdminAction } from "@prisma/client";
@@ -21,19 +21,19 @@ export interface ActivityEntry {
 
 /** Colour families by what the action does, so the list scans at a glance. */
 const TONE: Record<AdminAction, string> = {
-  PACKET_CREATED: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  PACKET_PUBLISHED: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  GENERATION_STARTED: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  REGENERATION_STARTED: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  PACKET_EDITED: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  ROUND_ADDED: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  ROUND_EDITED: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  QUESTION_ADDED: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  QUESTION_EDITED: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  PACKET_UNPUBLISHED: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  PACKET_DELETED: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  ROUND_DELETED: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  QUESTION_DELETED: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+  PACKET_CREATED: "bg-success/10 text-success",
+  PACKET_PUBLISHED: "bg-success/10 text-success",
+  GENERATION_STARTED: "bg-accent/10 text-accent",
+  REGENERATION_STARTED: "bg-accent/10 text-accent",
+  PACKET_EDITED: "bg-warning/10 text-warning",
+  ROUND_ADDED: "bg-warning/10 text-warning",
+  ROUND_EDITED: "bg-warning/10 text-warning",
+  QUESTION_ADDED: "bg-warning/10 text-warning",
+  QUESTION_EDITED: "bg-warning/10 text-warning",
+  PACKET_UNPUBLISHED: "bg-destructive/10 text-destructive",
+  PACKET_DELETED: "bg-destructive/10 text-destructive",
+  ROUND_DELETED: "bg-destructive/10 text-destructive",
+  QUESTION_DELETED: "bg-destructive/10 text-destructive",
 };
 
 export function ActivityLog({
@@ -54,6 +54,7 @@ export function ActivityLog({
   const [to, setTo] = useState(initialTo);
   const [q, setQ] = useState("");
   const [action, setAction] = useState<AdminAction | "">("");
+  const [pending, startTransition] = useTransition();
 
   // Actions actually present, so the filter never offers an empty result.
   const actions = useMemo(
@@ -75,7 +76,7 @@ export function ActivityLog({
   }, [entries, q, action]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Admin activity</h1>
@@ -94,17 +95,26 @@ export function ActivityLog({
           </label>
           <Button
             size="sm"
-            onClick={() => {
-              router.push(`/activity?from=${from}&to=${to}`);
-              router.refresh();
-            }}
+            loading={pending}
+            onClick={() =>
+              startTransition(() => {
+                router.push(`/activity?from=${from}&to=${to}`);
+                router.refresh();
+              })
+            }
           >
             Apply
           </Button>
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div
+        aria-busy={pending}
+        className={cn(
+          "rounded-lg border border-border bg-card p-4 transition-opacity",
+          pending && "pointer-events-none opacity-50",
+        )}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[16rem] flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -206,10 +216,10 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+        "rounded-full border px-2 py-1 text-[11px] font-medium transition-colors",
         active
-          ? "border-foreground/20 bg-accent text-accent-foreground"
-          : "border-border text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+          ? "border-foreground/20 bg-subtle text-foreground"
+          : "border-border text-muted-foreground hover:bg-subtle/60 hover:text-foreground",
       )}
     >
       {children}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Upload, CornerDownRight, Check, Plus } from "lucide-react";
+import { Upload, CornerDownRight, Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   WEB_SOURCES,
@@ -160,14 +160,14 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
   return (
     <form onSubmit={submit} className="space-y-6">
       {!sheetsReady && (
-        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+        <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
           Google Sheets is not configured yet — packets can&apos;t pull questions until{" "}
           <code>GOOGLE_SA_*</code> is set.
         </p>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="track">Track *</Label>
           <Select id="track" value={form.track} onChange={(e) => set("track", e.target.value)}>
             <option value="" disabled>
@@ -179,7 +179,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
             <option value="DSML">DS / ML</option>
           </Select>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="yoe">Years of experience *</Label>
           <Select id="yoe" value={form.yoeBucket} onChange={(e) => set("yoeBucket", e.target.value)}>
             <option value="LT2">Less than 2 years</option>
@@ -187,7 +187,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
             <option value="GT5">5+ years</option>
           </Select>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="company">Company *</Label>
           <Combobox
             id="company"
@@ -207,7 +207,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
                 : `${companyOptions.length} companies documented in this track.`}
           </p>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="role">Role *</Label>
           <Combobox
             id="role"
@@ -231,7 +231,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
                 : " "}
           </p>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="stack">Tech stack / specialization</Label>
           <Input
             id="stack"
@@ -240,7 +240,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
             placeholder="e.g. Java + Spring Boot (optional)"
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
           <Input id="location" value={form.location} onChange={(e) => set("location", e.target.value)} />
         </div>
@@ -256,14 +256,14 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
             </span>{" "}
             at this experience. New questions will be{" "}
             <span className="font-medium">appended to it</span> (no duplicate).{" "}
-            <Link href={`/packets`} className="text-primary underline">
+            <Link href={`/packets`} className="text-accent underline underline-offset-2 hover:no-underline">
               view packets
             </Link>
           </span>
         </p>
       )}
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <Label htmlFor="jd">Job description (optional)</Label>
         <Textarea
           id="jd"
@@ -290,11 +290,11 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
             type="button"
             variant="outline"
             size="sm"
-            disabled={uploading}
+            loading={uploading}
             onClick={() => fileRef.current?.click()}
           >
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {jdFileName ? `Uploaded: ${jdFileName}` : "Upload .pdf / .docx / .txt"}
+            <Upload className="h-4 w-4" />
+            {uploading ? "Reading file…" : jdFileName ? `Uploaded: ${jdFileName}` : "Upload .pdf / .docx / .txt"}
           </Button>
         </div>
       </div>
@@ -336,7 +336,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
               <p className="text-xs font-medium">Search these sources</p>
               <button
                 type="button"
-                className="text-[11px] text-primary underline"
+                className="text-[11px] text-accent underline underline-offset-2 hover:no-underline"
                 onClick={() =>
                   setSources(sources.length === ALL_SOURCE_IDS.length ? [] : ALL_SOURCE_IDS)
                 }
@@ -344,7 +344,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
                 {sources.length === ALL_SOURCE_IDS.length ? "Clear all" : "Select all"}
               </button>
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-2">
               {WEB_SOURCES.map((s) => {
                 const on = sources.includes(s.id);
                 return (
@@ -358,10 +358,10 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
                       )
                     }
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                       on
                         ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:bg-accent",
+                        : "border-border text-muted-foreground hover:bg-subtle",
                     )}
                   >
                     {on ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
@@ -376,7 +376,7 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
               {!practiceOn && (
                 <>
                   {" "}
-                  <span className="text-amber-600 dark:text-amber-400">
+                  <span className="text-warning">
                     LeetCode and GeeksforGeeks are both off — practice links won&apos;t be
                     fetched automatically.
                   </span>
@@ -393,9 +393,8 @@ export function CreateForm({ llmReady, sheetsReady }: { llmReady: boolean; sheet
         </p>
       )}
 
-      <Button type="submit" disabled={busy} size="lg">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        Create packet
+      <Button type="submit" loading={busy} size="lg">
+        {busy ? "Creating packet…" : "Create packet"}
       </Button>
       <p className="text-xs text-muted-foreground">
         If a packet already exists for this company · role · experience, new questions are

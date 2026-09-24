@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, RefreshCw, Search, Star, Loader2 } from "lucide-react";
+import { Download, RefreshCw, Search, Star } from "lucide-react";
 import type { TrackingSummary } from "@/lib/tracking";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { MATCHED_LABEL } from "@/lib/labels";
 import { cn, formatUsd, formatDate, formatDateTime, formatDuration, isoDate } from "@/lib/utils";
@@ -62,6 +63,7 @@ export function TrackingDashboard({
   const [to, setTo] = useState(data.to);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [rangePending, startRange] = useTransition();
 
   const qs = `from=${from}&to=${to}`;
   const dl = (report: string) => `/api/tracking/export?report=${report}&${qs}`;
@@ -72,8 +74,10 @@ export function TrackingDashboard({
   function go(nextFrom: string, nextTo: string) {
     setFrom(nextFrom);
     setTo(nextTo);
-    router.push(`/tracking?from=${nextFrom}&to=${nextTo}`);
-    router.refresh(); // searchParam-only nav can serve a stale RSC payload otherwise
+    startRange(() => {
+      router.push(`/tracking?from=${nextFrom}&to=${nextTo}`);
+      router.refresh(); // searchParam-only nav can serve a stale RSC payload otherwise
+    });
   }
 
   function applyRange() {
@@ -97,7 +101,7 @@ export function TrackingDashboard({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Tracking</h1>
@@ -106,9 +110,9 @@ export function TrackingDashboard({
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <Button variant="outline" size="sm" onClick={sync} disabled={syncing}>
-            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Sync to Sheets
+          <Button variant="outline" size="sm" onClick={sync} loading={syncing}>
+            <RefreshCw className="h-4 w-4" />
+            {syncing ? "Syncing…" : "Sync to Sheets"}
           </Button>
           <Button asChild variant="outline" size="sm">
             <a href={`/api/tracking/export?${qs}`} download>
@@ -122,10 +126,11 @@ export function TrackingDashboard({
 
       <LlmSpend overview={data.llmOverview} href={dl("llm-cost")} />
 
-      <section className="rounded-lg border border-border bg-card/40 p-4">
+      <section className="rounded-lg border border-border bg-card/40 p-4" aria-busy={rangePending}>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              {rangePending && <Spinner className="text-primary" label="Loading range" />}
               Showing: {preset ? PRESET_LABEL[preset] : `${formatDate(data.from)} — ${formatDate(data.to)}`}
             </h2>
             <p className="text-[11px] text-muted-foreground">
@@ -138,15 +143,16 @@ export function TrackingDashboard({
                 <button
                   key={p.label}
                   type="button"
+                  disabled={rangePending}
                   onClick={() => {
                     const r = presetRange(p.days);
                     go(r.from, r.to);
                   }}
                   className={cn(
-                    "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                    "rounded-md border px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60",
                     preset === p.label
-                      ? "border-foreground/20 bg-accent text-accent-foreground"
-                      : "border-border text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                      ? "border-foreground/20 bg-subtle text-foreground"
+                      : "border-border text-muted-foreground hover:bg-subtle/60 hover:text-foreground",
                   )}
                 >
                   {p.label}
@@ -161,13 +167,13 @@ export function TrackingDashboard({
               To
               <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 h-9" />
             </label>
-            <Button size="sm" onClick={applyRange}>
+            <Button size="sm" onClick={applyRange} loading={rangePending}>
               Apply
             </Button>
           </div>
         </div>
 
-        <div className="space-y-5">
+        <div className={cn("space-y-6 transition-opacity", rangePending && "pointer-events-none opacity-50")}>
         <TrackingCharts daily={data.daily} />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -214,7 +220,7 @@ export function TrackingDashboard({
         <StatCard label="Feedback" value={data.feedbackCount} sub="submissions" href={dl("feedback")} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Top packets by reads" href={dl("reads")}>
           <table className="w-full text-sm">
             <tbody>
@@ -324,10 +330,10 @@ const PRESET_LABEL: Record<string, string> = {
 /** How far through the packet the learner got, as a bar plus the number. */
 function ScrollBar({ pct }: { pct: number }) {
   return (
-    <span className="flex items-center gap-1.5">
+    <span className="flex items-center gap-2">
       <span className="h-1.5 w-10 overflow-hidden rounded-full bg-muted">
         <span
-          className="block h-full rounded-full bg-[var(--chart-1)]"
+          className="block h-full rounded-full bg-accent"
           style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
         />
       </span>
@@ -531,8 +537,8 @@ function PacketDirectory({ pairs }: { pairs: { company: string; role: string }[]
           Edited to
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 h-9" />
         </label>
-        <Button type="submit" size="sm" disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load"}
+        <Button type="submit" size="sm" loading={loading}>
+          Load
         </Button>
       </form>
 
@@ -625,14 +631,14 @@ function LearnerLookup() {
             className="pl-8"
           />
         </div>
-        <Button type="submit" disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look up"}
+        <Button type="submit" loading={loading}>
+          Look up
         </Button>
       </form>
       {result && (
         <div className="mt-4 space-y-3">
           {result.internal && (
-            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+            <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
               This is a Scaler staff account — its activity is excluded from all
               tracking metrics.
             </p>
@@ -712,7 +718,7 @@ function Stars({ n }: { n: number }) {
       {[1, 2, 3, 4, 5].map((i) => (
         <Star
           key={i}
-          className={`h-3.5 w-3.5 ${i <= n ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}
+          className={`h-3.5 w-3.5 ${i <= n ? "fill-warning text-warning" : "text-muted-foreground"}`}
         />
       ))}
     </span>

@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
-  Loader2,
   Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -140,7 +139,7 @@ export function PacketEditor({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/packets" className="text-xs text-muted-foreground hover:underline">
@@ -166,6 +165,7 @@ export function PacketEditor({
             variant="outline"
             size="sm"
             disabled={busy !== null}
+            loading={busy === "regen"}
             onClick={() =>
               run("regen", async () => {
                 try {
@@ -186,6 +186,7 @@ export function PacketEditor({
               variant={allowHigherCost ? "secondary" : "outline"}
               size="sm"
               disabled={busy !== null}
+              loading={busy === "costLimit"}
               onClick={() =>
                 run("costLimit", async () => {
                   const next = !allowHigherCost;
@@ -202,6 +203,7 @@ export function PacketEditor({
             size="sm"
             variant={status === "PUBLISHED" ? "secondary" : "default"}
             disabled={busy !== null}
+            loading={busy === "publish"}
             onClick={() =>
               run("publish", async () => {
                 const next = status === "PUBLISHED" ? false : true;
@@ -225,7 +227,9 @@ export function PacketEditor({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Delete packet"
             disabled={busy !== null}
+            loading={busy === "delete"}
             onClick={() =>
               run("delete", async () => {
                 if (!confirm("Delete this packet permanently?")) return;
@@ -336,6 +340,16 @@ function RoundBlock({
 }) {
   const [adding, setAdding] = useState(false);
   const [newText, setNewText] = useState("");
+  const [pending, setPending] = useState<"delete" | "add" | null>(null);
+
+  async function withPending(key: "delete" | "add", fn: () => Promise<void>) {
+    setPending(key);
+    try {
+      await fn();
+    } finally {
+      setPending(null);
+    }
+  }
 
   return (
     <section className="rounded-lg border border-border bg-card">
@@ -368,10 +382,14 @@ function RoundBlock({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          onClick={async () => {
+          aria-label={`Delete ${round.name} round`}
+          loading={pending === "delete"}
+          onClick={() => {
             if (!confirm(`Delete the "${round.name}" round and all its questions?`)) return;
-            await api(`/api/rounds/${round.id}`, "DELETE");
-            onRoundDeleted();
+            withPending("delete", async () => {
+              await api(`/api/rounds/${round.id}`, "DELETE");
+              onRoundDeleted();
+            });
           }}
         >
           <Trash2 className="h-4 w-4 text-destructive" />
@@ -403,8 +421,9 @@ function RoundBlock({
             <div className="flex gap-2">
               <Button
                 size="sm"
-                onClick={async () => {
-                  if (newText.trim().length < 3) return;
+                loading={pending === "add"}
+                disabled={newText.trim().length < 3}
+                onClick={() => withPending("add", async () => {
                   const d = await api(`/api/rounds/${round.id}/questions`, "POST", {
                     text: newText.trim(),
                   });
@@ -422,7 +441,7 @@ function RoundBlock({
                   });
                   setNewText("");
                   setAdding(false);
-                }}
+                })}
               >
                 Add
               </Button>
@@ -458,6 +477,7 @@ function QuestionCard({
   const [text, setText] = useState(q.displayText);
   const [link, setLink] = useState(q.problemLink ?? "");
   const [findingLink, setFindingLink] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const badge = SOURCE_BADGE[q.source];
   const differs = q.originalText.trim() !== q.improvedText.trim();
 
@@ -476,9 +496,16 @@ function QuestionCard({
           variant="ghost"
           size="icon"
           className="ml-auto h-7 w-7"
+          aria-label="Delete question"
+          loading={deleting}
           onClick={async () => {
-            await api(`/api/questions/${q.id}`, "DELETE");
-            onRemoved();
+            setDeleting(true);
+            try {
+              await api(`/api/questions/${q.id}`, "DELETE");
+              onRemoved();
+            } catch {
+              setDeleting(false);
+            }
           }}
         >
           <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -564,7 +591,7 @@ function QuestionCard({
             variant="outline"
             size="sm"
             className="h-8"
-            disabled={findingLink}
+            loading={findingLink}
             onClick={async () => {
               setFindingLink(true);
               try {
@@ -578,7 +605,7 @@ function QuestionCard({
               }
             }}
           >
-            {findingLink ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+            <Wand2 className="h-3.5 w-3.5" />
             Auto-find
           </Button>
         )}
@@ -591,6 +618,7 @@ function AddRound({ packetId, onAdded }: { packetId: string; onAdded: (r: RData)
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("");
+  const [saving, setSaving] = useState(false);
 
   if (!open) {
     return (
@@ -616,18 +644,24 @@ function AddRound({ packetId, onAdded }: { packetId: string; onAdded: (r: RData)
       />
       <Button
         size="sm"
+        loading={saving}
+        disabled={!name.trim()}
         onClick={async () => {
-          if (!name.trim()) return;
-          const res = await fetch(`/api/packets/${packetId}/rounds`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name.trim(), duration: duration || undefined }),
-          });
-          const d = await res.json();
-          onAdded({ id: d.round.id, name: d.round.name, duration: d.round.duration, isSpillover: false, questions: [] });
-          setOpen(false);
-          setName("");
-          setDuration("");
+          setSaving(true);
+          try {
+            const res = await fetch(`/api/packets/${packetId}/rounds`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: name.trim(), duration: duration || undefined }),
+            });
+            const d = await res.json();
+            onAdded({ id: d.round.id, name: d.round.name, duration: d.round.duration, isSpillover: false, questions: [] });
+            setOpen(false);
+            setName("");
+            setDuration("");
+          } finally {
+            setSaving(false);
+          }
         }}
       >
         Add

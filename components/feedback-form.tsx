@@ -56,7 +56,7 @@ export function FeedbackForm({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div className="rounded-lg border border-border bg-card p-6">
       <h3 className="text-sm font-semibold">Share feedback</h3>
       <p className="mt-0.5 text-xs text-muted-foreground">
         How helpful was this packet? Your response helps us improve it.
@@ -76,7 +76,7 @@ export function FeedbackForm({
               className={cn(
                 "h-6 w-6 transition-colors",
                 (hover || stars) >= n
-                  ? "fill-amber-400 text-amber-400"
+                  ? "fill-warning text-warning"
                   : "text-muted-foreground",
               )}
             />
@@ -88,7 +88,7 @@ export function FeedbackForm({
         <p className="text-xs font-medium text-muted-foreground">
           Did the questions match your interview?
         </p>
-        <div className="mt-1.5 flex gap-2">
+        <div className="mt-2 flex gap-2">
           {MATCH_OPTIONS.map((o) => (
             <button
               key={o.value}
@@ -98,7 +98,7 @@ export function FeedbackForm({
                 "rounded-md border px-3 py-1 text-sm transition-colors",
                 matched === o.value
                   ? "border-primary bg-primary/10 text-primary"
-                  : "border-border hover:bg-accent",
+                  : "border-border hover:bg-subtle",
               )}
             >
               {o.label}
@@ -117,7 +117,7 @@ export function FeedbackForm({
 
       {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
 
-      <Button className="mt-3" size="sm" onClick={submit} disabled={busy}>
+      <Button className="mt-3" size="sm" onClick={submit} loading={busy}>
         {saved ? <Check className="h-4 w-4" /> : null}
         {saved ? "Saved — thank you" : initial ? "Update feedback" : "Submit feedback"}
       </Button>

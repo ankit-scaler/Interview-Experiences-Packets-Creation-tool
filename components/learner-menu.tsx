@@ -22,19 +22,19 @@ export function LearnerMenu({ email }: { email?: string | null }) {
         type="button"
         aria-label="Account menu"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:text-foreground hover:bg-subtle"
       >
         <User className="h-4 w-4" />
       </button>
       {open && (
         <div className="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-md border border-border bg-card p-1 text-sm shadow-lg">
           {email && (
-            <p className="truncate px-2 py-1.5 text-xs text-muted-foreground">{email}</p>
+            <p className="truncate px-2 py-2 text-xs text-muted-foreground">{email}</p>
           )}
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/signin" })}
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent"
+            className="flex w-full items-center gap-2 rounded px-2 py-2 text-left hover:bg-subtle"
           >
             <LogOut className="h-4 w-4" />
             Sign out

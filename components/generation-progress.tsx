@@ -128,7 +128,7 @@ export function GenerationProgress({
       </div>
 
       {!failed && (
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-accent">
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-subtle">
           <div
             className="h-full rounded-full bg-primary transition-all duration-500"
             style={{ width: `${Math.max(5, job?.progress ?? 5)}%` }}

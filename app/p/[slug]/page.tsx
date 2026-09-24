@@ -54,11 +54,11 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
       <ReadTracker slug={params.slug} />
       <div className="mx-auto max-w-3xl py-6 sm:py-10">
         <article className="overflow-hidden rounded-2xl border border-border bg-card elev">
-          <header className="border-b border-border px-5 py-6 sm:px-9 sm:py-8">
+          <header className="border-b border-border px-6 py-6 sm:px-8 sm:py-8">
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
               Interview packet
             </p>
-            <h1 className="mt-1.5 text-balance text-xl font-bold leading-tight tracking-tight sm:text-[26px]">
+            <h1 className="mt-2 text-balance text-xl font-bold leading-tight tracking-tight sm:text-[26px]">
               {packet.company} — {packet.role}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -68,7 +68,7 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
 
           <div className="divide-y divide-border">
             {packet.rounds.map((round, ri) => (
-              <section key={round.id} className="scroll-mt-20 px-5 py-6 sm:px-9 sm:py-8">
+              <section key={round.id} className="scroll-mt-20 px-6 py-6 sm:px-8 sm:py-8">
                 <div className="mb-4 flex items-baseline gap-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                     {round.isSpillover ? "＋" : ri + 1}
@@ -88,7 +88,7 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
                   {round.questions.map((q, i) => (
                     <li
                       key={q.id}
-                      className="group flex gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/60 sm:gap-4 sm:px-3"
+                      className="group flex gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 sm:gap-4 sm:px-3"
                     >
                       <span className="select-none pt-[3px] text-sm font-semibold tabular-nums text-muted-foreground">
                         {i + 1}
@@ -102,7 +102,7 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
                             href={q.problemLink}
                             target="_blank"
                             rel="noreferrer"
-                            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                            className="mt-2 inline-flex items-center gap-2 rounded-md border border-accent/25 bg-accent/5 px-2 py-1 text-xs font-semibold text-accent transition-colors hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                             Solve this question
@@ -148,7 +148,7 @@ function Shell({
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
           <ScalerLogo className="h-5 sm:h-[22px]" />
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             {email ? <LearnerMenu email={email} /> : null}
           </div>
