@@ -198,7 +198,7 @@ export function TrackingDashboard({
         <StatCard
           label="Published packets, no reads"
           value={data.packetsWithNoReads}
-          sub="in this date range"
+          sub="published / edited in this range"
           href={dl("no-reads")}
         />
         <StatCard label="LLM cost" value={formatUsd(data.llmCost)} sub="in this date range" href={dl("llm-cost")} />

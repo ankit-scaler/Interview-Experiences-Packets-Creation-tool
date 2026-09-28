@@ -28,6 +28,11 @@ export interface Report {
   rows: (string | number)[][];
 }
 
+/** A `@db.Date` value (UTC midnight) as "25 Sep 2026", without a timezone shift. */
+function formatDay(d: Date): string {
+  return formatDate(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
 function packetUrl(slug: string) {
   return `${env.appUrl.replace(/\/$/, "")}/p/${slug}`;
 }
@@ -76,37 +81,47 @@ async function packetsCreated({ from, to }: DateRange): Promise<Report> {
   };
 }
 
-/** Reads per packet within the range (a read = a distinct learner-day). */
+/**
+ * Every read within the range — one row per learner × packet × day, so the row
+ * count equals the "Reads" card. Time is that day's active time; scroll is the
+ * learner's all-time furthest point (it isn't tracked per day).
+ */
 async function readsByPacket({ fromDay, toDay }: DateRange): Promise<Report> {
   const days = await db.packetReadDay.findMany({
     where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
     include: { packetRead: { include: { packet: { select: { company: true, role: true, track: true, slug: true } } } } },
+    orderBy: [{ day: "desc" }, { seconds: "desc" }],
   });
-  const byPacket = new Map<string, { company: string; role: string; track: string; slug: string; reads: number; learners: Set<string>; seconds: number }>();
-  for (const d of days) {
-    const p = d.packetRead.packet;
-    const k = p.slug;
-    const e = byPacket.get(k) ?? { company: p.company, role: p.role, track: p.track, slug: p.slug, reads: 0, learners: new Set(), seconds: 0 };
-    e.reads += 1;
-    e.learners.add(d.packetRead.userEmail);
-    e.seconds += d.seconds;
-    byPacket.set(k, e);
-  }
   return {
     key: "reads",
-    title: "Reads by packet",
-    headers: ["Company", "Role", "Track", "Reads", "Unique learners", "Total time", "Packet link"],
-    rows: [...byPacket.values()]
-      .sort((a, b) => b.reads - a.reads)
-      .map((e) => [e.company, e.role, e.track, e.reads, e.learners.size, formatDuration(e.seconds), packetUrl(e.slug)]),
+    title: "Reads",
+    headers: ["Date", "Learner email", "Company", "Role", "Track", "Total time", "Scroll %", "Packet link"],
+    rows: days.map((d) => {
+      const r = d.packetRead;
+      const p = r.packet;
+      return [
+        formatDay(d.day),
+        r.userEmail,
+        p.company,
+        p.role,
+        p.track,
+        formatDuration(d.seconds),
+        `${r.scrollPct}%`,
+        packetUrl(p.slug),
+      ];
+    }),
   };
 }
 
-/** Published packets that got zero reads in the range. */
-async function packetsNoReads({ to, fromDay, toDay }: DateRange): Promise<Report> {
+/** Packets published or edited in the range that got zero reads in the range. */
+async function packetsNoReads({ from, to, fromDay, toDay }: DateRange): Promise<Report> {
   const packets = await db.packet.findMany({
-    where: { status: "PUBLISHED", publishedAt: { lte: to } },
-    select: { company: true, role: true, track: true, slug: true, publishedAt: true },
+    where: {
+      status: "PUBLISHED",
+      OR: [{ publishedAt: { gte: from, lte: to } }, { updatedAt: { gte: from, lte: to } }],
+    },
+    select: { company: true, role: true, track: true, slug: true, publishedAt: true, updatedAt: true },
+    orderBy: { updatedAt: "desc" },
   });
   const readSlugs = new Set(
     (
@@ -118,11 +133,11 @@ async function packetsNoReads({ to, fromDay, toDay }: DateRange): Promise<Report
   );
   return {
     key: "no-reads",
-    title: "Published packets with no reads",
-    headers: ["Company", "Role", "Track", "Published", "Packet link"],
+    title: "Packets published / edited with no reads",
+    headers: ["Company", "Role", "Track", "Published", "Last edited", "Packet link"],
     rows: packets
       .filter((p) => !readSlugs.has(p.slug))
-      .map((p) => [p.company, p.role, p.track, formatDate(p.publishedAt), packetUrl(p.slug)]),
+      .map((p) => [p.company, p.role, p.track, formatDate(p.publishedAt), formatDate(p.updatedAt), packetUrl(p.slug)]),
   };
 }
 
@@ -137,23 +152,26 @@ async function packetsNoReads({ to, fromDay, toDay }: DateRange): Promise<Report
  */
 async function llmCostByPacket({ from, to }: DateRange): Promise<Report> {
   const calls = await db.llmCall.findMany({
-    where: { createdAt: { gte: from, lte: to }, packetId: { not: null } },
+    where: { createdAt: { gte: from, lte: to } },
     include: { packet: { select: { company: true, role: true, slug: true } } },
   });
+  // Calls not tied to a packet (e.g. a failed job) still cost money — they get one
+  // shared row so the rows sum to the "LLM cost" card and the daily chart.
+  const NO_PACKET = "";
   const byPacket = new Map<string, { company: string; role: string; slug: string; cost: number; inTok: number; outTok: number; cachedTok: number }>();
   for (const c of calls) {
-    if (!c.packet) continue;
-    const e = byPacket.get(c.packet.slug) ?? { company: c.packet.company, role: c.packet.role, slug: c.packet.slug, cost: 0, inTok: 0, outTok: 0, cachedTok: 0 };
+    const p = c.packet ?? { company: "(not tied to a packet)", role: "—", slug: NO_PACKET };
+    const e = byPacket.get(p.slug) ?? { company: p.company, role: p.role, slug: p.slug, cost: 0, inTok: 0, outTok: 0, cachedTok: 0 };
     e.cost += c.costUsd;
     e.inTok += c.inputTokens;
     e.outTok += c.outputTokens;
     e.cachedTok += c.cachedInputTokens;
-    byPacket.set(c.packet.slug, e);
+    byPacket.set(p.slug, e);
   }
 
   // All-time lifetime spend + reads for every packet that appears above.
   const packets = await db.packet.findMany({
-    where: { slug: { in: [...byPacket.keys()] } },
+    where: { slug: { in: [...byPacket.keys()].filter((k) => k !== NO_PACKET) } },
     select: {
       slug: true,
       lifetimeCostUsd: true,
@@ -205,7 +223,7 @@ async function llmCostByPacket({ from, to }: DateRange): Promise<Report> {
           lt.learners,
           per(lt.cost, lt.reads),
           per(lt.cost, lt.learners),
-          packetUrl(e.slug),
+          e.slug === NO_PACKET ? "" : packetUrl(e.slug),
         ];
       }),
   };
@@ -304,19 +322,27 @@ async function vaultClicks({ from, to }: DateRange): Promise<Report> {
   };
 }
 
-/** One row per learner × packet — the single "who read what" view. */
-async function learnerPacketConsumption({ from, to }: DateRange): Promise<Report> {
+/**
+ * One row per learner × packet read on any day in the range — the single "who
+ * read what" view. Everything is scoped to the range except scroll, which is
+ * the learner's all-time furthest point (it isn't tracked per day).
+ */
+async function learnerPacketConsumption({ fromDay, toDay }: DateRange): Promise<Report> {
+  const inRange = { day: { gte: fromDay, lte: toDay } };
   const reads = await db.packetRead.findMany({
-    where: {
-      OR: [{ firstReadAt: { gte: from, lte: to } }, { lastReadAt: { gte: from, lte: to } }],
-      NOT: NOT_INTERNAL,
-    },
+    where: { days: { some: inRange }, NOT: NOT_INTERNAL },
     include: {
       packet: { select: { company: true, role: true, slug: true, track: true } },
-      days: { select: { seconds: true } },
+      days: { where: inRange, select: { day: true, seconds: true }, orderBy: { day: "asc" } },
     },
-    orderBy: { lastReadAt: "desc" },
   });
+  const rows = reads.map((r) => ({
+    r,
+    first: r.days[0].day,
+    last: r.days[r.days.length - 1].day,
+    seconds: r.days.reduce((n, d) => n + d.seconds, 0),
+  }));
+  rows.sort((a, b) => b.last.getTime() - a.last.getTime() || b.seconds - a.seconds);
   return {
     key: "learner-packet-consumption",
     title: "Learner × Packet Consumption",
@@ -332,15 +358,15 @@ async function learnerPacketConsumption({ from, to }: DateRange): Promise<Report
       "Scroll %",
       "Packet link",
     ],
-    rows: reads.map((r) => [
+    rows: rows.map(({ r, first, last, seconds }) => [
       r.userEmail,
       r.packet.company,
       r.packet.role,
       r.packet.track,
-      formatDate(r.firstReadAt),
-      formatDate(r.lastReadAt),
-      r.readDays,
-      formatDuration(r.days.reduce((n, d) => n + d.seconds, 0)),
+      formatDay(first),
+      formatDay(last),
+      r.days.length,
+      formatDuration(seconds),
       `${r.scrollPct}%`,
       packetUrl(r.packet.slug),
     ]),

@@ -15,7 +15,7 @@ import { replaceSheet } from "@/lib/sheets/tracking";
  */
 const TAB_FOR: Record<string, string> = {
   "packets-created": "Packets Created",
-  reads: "Reads by Packet",
+  reads: "Reads by Packet", // one row per learner × packet × day
   "learner-packet-consumption": "Learner × Packet Consumption",
   "no-reads": "Packets No Reads",
   "llm-cost": "LLM Cost",

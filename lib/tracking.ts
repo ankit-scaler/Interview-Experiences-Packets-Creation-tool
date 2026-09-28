@@ -177,7 +177,10 @@ export async function trackingSummary(
   const [days, feedbackRows, syncState, daily, overview] = await Promise.all([
     db.packetReadDay.findMany({
       where: { day: { gte: fromDay, lte: toDay }, NOT: NOT_INTERNAL_VIA_READ },
-      select: { seconds: true, packetRead: { select: { userEmail: true } } },
+      select: {
+        seconds: true,
+        packetRead: { select: { userEmail: true, packet: { select: { company: true, role: true, slug: true } } } },
+      },
     }),
     db.feedback.findMany({
       where: { createdAt: { gte: from, lte: to }, NOT: NOT_INTERNAL },
@@ -191,10 +194,19 @@ export async function trackingSummary(
   ]);
 
   const created = byKey["packets-created"]?.rows ?? [];
-  const readsRows = byKey["reads"]?.rows ?? [];
   const timeRows = byKey["time-spent"]?.rows ?? [];
   const consumption = byKey["learner-packet-consumption"];
   const logRows = consumption?.rows ?? [];
+
+  // A read = one learner × packet × day row; the reads report is per-learner, so
+  // per-packet totals come straight from the read days.
+  const readsPerPacket = new Map<string, { company: string; role: string; slug: string; reads: number }>();
+  for (const d of days) {
+    const p = d.packetRead.packet;
+    const e = readsPerPacket.get(p.slug) ?? { company: p.company, role: p.role, slug: p.slug, reads: 0 };
+    e.reads += 1;
+    readsPerPacket.set(p.slug, e);
+  }
 
   const totalActiveSeconds = days.filter((d) => d.seconds > 0).reduce((n, d) => n + d.seconds, 0);
 
@@ -205,8 +217,8 @@ export async function trackingSummary(
     packetsNew: created.filter((r) => col(byKey["packets-created"], r, "Type") === "New").length,
     packetsAppended: created.filter((r) => col(byKey["packets-created"], r, "Type") === "Append")
       .length,
-    totalReads: readsRows.reduce((n, r) => n + num(col(byKey["reads"], r, "Reads")), 0),
-    uniqueLearners: new Set(days.map((d) => d.packetRead.userEmail)).size,
+    totalReads: days.length,
+    uniqueLearners: new Set(days.map((d) => d.packetRead.userEmail.toLowerCase())).size,
     readLogCount: logRows.length,
     packetsWithNoReads: byKey["no-reads"]?.rows.length ?? 0,
     llmCost: (byKey["llm-cost"]?.rows ?? []).reduce(
@@ -217,13 +229,9 @@ export async function trackingSummary(
       timeRows.length === 0 ? 0 : Math.round(totalActiveSeconds / timeRows.length),
     repeatReadPairs: byKey["repeat-reads"]?.rows.length ?? 0,
     vaultClicks: byKey["vault-clicks"]?.rows.length ?? 0,
-    feedbackCount: feedbackRows.length,
-    topPackets: readsRows.slice(0, 10).map((r) => ({
-      company: String(col(byKey["reads"], r, "Company") ?? ""),
-      role: String(col(byKey["reads"], r, "Role") ?? ""),
-      slug: String(col(byKey["reads"], r, "Packet link") ?? "").split("/p/")[1] ?? "",
-      reads: num(col(byKey["reads"], r, "Reads")),
-    })),
+    // feedbackRows is capped at 6 for the "Recent feedback" panel — count the report.
+    feedbackCount: byKey["feedback"]?.rows.length ?? 0,
+    topPackets: [...readsPerPacket.values()].sort((a, b) => b.reads - a.reads).slice(0, 10),
     recentFeedback: feedbackRows.map((f) => ({
       company: f.packet.company,
       role: f.packet.role,
