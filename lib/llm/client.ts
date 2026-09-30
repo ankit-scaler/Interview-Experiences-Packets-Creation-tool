@@ -168,9 +168,18 @@ async function fetchGenerationCost(genId: string): Promise<number | undefined> {
 
 /** Turn an OpenRouter/OpenAI SDK error into a message an admin can act on. */
 function asFriendlyLlmError(err: unknown, model: string): Error {
-  const e = err as { status?: number; message?: string; error?: { message?: string } };
+  const e = err as {
+    status?: number;
+    message?: string;
+    error?: { message?: string; metadata?: { raw?: unknown; provider_name?: string } };
+  };
   const status = e?.status;
-  const detail = e?.error?.message || e?.message || "";
+  // OpenRouter wraps upstream failures as "Provider returned error" and puts the
+  // provider's own reason in metadata.raw — surface it, or the error is unactionable.
+  const meta = e?.error?.metadata;
+  const raw = meta?.raw === undefined ? "" : typeof meta.raw === "string" ? meta.raw : JSON.stringify(meta.raw);
+  const upstream = raw ? ` — ${meta?.provider_name ?? "provider"}: ${raw.slice(0, 500)}` : "";
+  const detail = `${e?.error?.message || e?.message || ""}${upstream}`;
   if (status === 402) {
     return new Error(
       "OpenRouter is out of credits (or the daily spend limit was hit). Add credit / raise the limit, then retry from the failed step.",
