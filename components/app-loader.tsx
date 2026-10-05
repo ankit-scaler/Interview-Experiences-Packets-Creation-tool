@@ -123,8 +123,18 @@ export function AppLoader() {
       startNav();
     }
 
+    // Hash-only changes (e.g. the packet reader's #r2 round tabs) never change
+    // the route, so the pathname effect would never release the hold — skip them.
+    let page = location.pathname + location.search;
+    function onPopState() {
+      const now = location.pathname + location.search;
+      if (now === page) return;
+      page = now;
+      startNav();
+    }
+
     document.addEventListener("click", onClick, true);
-    window.addEventListener("popstate", startNav);
+    window.addEventListener("popstate", onPopState);
     window.addEventListener("app:nav", startNav);
 
     const w = window as unknown as { __loaderPatched?: boolean };
@@ -133,7 +143,15 @@ export function AppLoader() {
       w.__loaderPatched = true;
       const origPush = history.pushState.bind(history);
       history.pushState = function (...args) {
-        window.dispatchEvent(new Event("app:nav"));
+        const [, , url] = args as Parameters<typeof origPush>;
+        let hashOnly = false;
+        try {
+          const to = new URL(String(url ?? location.href), location.href);
+          hashOnly = to.pathname === location.pathname && to.search === location.search;
+        } catch {
+          /* unparseable URL — treat as a real navigation */
+        }
+        if (!hashOnly) window.dispatchEvent(new Event("app:nav"));
         return origPush(...(args as Parameters<typeof origPush>));
       };
       unpatch = () => {
@@ -144,7 +162,7 @@ export function AppLoader() {
 
     return () => {
       document.removeEventListener("click", onClick, true);
-      window.removeEventListener("popstate", startNav);
+      window.removeEventListener("popstate", onPopState);
       window.removeEventListener("app:nav", startNav);
       unpatch?.();
     };
