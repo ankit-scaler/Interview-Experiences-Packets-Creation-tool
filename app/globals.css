@@ -61,6 +61,52 @@
     --chart-2: #fb923c;
     --chart-3: #2dd4bf;
   }
+
+  /*
+   * Learner reading surface (/p/[slug]) — teal, from the Figma "Interview Packet
+   * Reader". Scoped so admin pages keep navy + tangerine. Dark values are the
+   * Figma variables; light values were sampled from the light frame. All text
+   * pairs >= 4.5:1.
+   */
+  .learner {
+    --background: 189 28% 95.1%;
+    --foreground: 195 54.5% 12.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 195 54.5% 12.9%;
+    --muted: 191 28.2% 92.4%;
+    --muted-foreground: 193 18% 35.9%;
+    --subtle: 193 28% 90.2%;
+    --border: 190 25.7% 86.3%;
+    --input: 191 23% 76.1%;
+    --primary: 191 78.4% 21.8%;
+    --primary-hover: 191 80.7% 16.3%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 191 78.4% 21.8%;
+    --accent-foreground: 0 0% 100%;
+    --success: 140 60.9% 26.1%;
+    --warning: 25 87.2% 33.7%;
+    --ring: 191 78.4% 21.8%;
+  }
+
+  .dark .learner {
+    --background: 194 63.6% 6.5%;
+    --foreground: 189 41.9% 93.9%;
+    --card: 195 51.9% 10.6%;
+    --card-foreground: 189 41.9% 93.9%;
+    --muted: 194 56.1% 16.1%;
+    --muted-foreground: 192 24.6% 72.9%;
+    --subtle: 195 48.1% 15.9%;
+    --border: 195 42.6% 18.4%;
+    --input: 193 37.3% 26.3%;
+    --primary: 188 73% 63.7%;
+    --primary-hover: 188 74.6% 73.7%;
+    --primary-foreground: 192 90.9% 8.6%;
+    --accent: 188 73% 63.7%;
+    --accent-foreground: 192 90.9% 8.6%;
+    --success: 140 57.2% 71.6%;
+    --warning: 32 100% 73.9%;
+    --ring: 188 73% 63.7%;
+  }
 }
 
 @layer base {

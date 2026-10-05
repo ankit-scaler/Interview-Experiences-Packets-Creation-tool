@@ -4,40 +4,60 @@ import { useEffect, useRef } from "react";
 
 const TICK_MS = 20_000;
 
+/** Fired by the packet reader when a round's last question comes into view. */
+export const ROUND_DONE_EVENT = "packet:round-done";
+
+const storageKey = (slug: string) => `rounds-done:${slug}`;
+
+function loadDone(slug: string): Set<string> {
+  try {
+    const raw = window.localStorage.getItem(storageKey(slug));
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDone(slug: string, done: Set<string>) {
+  try {
+    window.localStorage.setItem(storageKey(slug), JSON.stringify([...done]));
+  } catch {
+    /* storage unavailable — progress still counts for this visit */
+  }
+}
+
 /**
  * Records the learner's read on mount, then accumulates active time on the page
- * (paused when the tab is hidden) plus how far down they got, flushing both to
- * the server periodically and on unload.
+ * (paused when the tab is hidden) plus progress, flushing both to the server
+ * periodically and on unload.
+ *
+ * Progress ("scrollPct") = rounds scrolled to the end ÷ total rounds, e.g. 2 of 4
+ * rounds = 50%. Completed rounds are remembered per browser so a return visit
+ * adds to them; the server only ever raises the stored value.
  */
-export function ReadTracker({ slug }: { slug: string }) {
+export function ReadTracker({ slug, totalRounds }: { slug: string; totalRounds: number }) {
   const pending = useRef(0);
   const scrollPct = useRef(0);
   const started = useRef(false);
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    fetch(`/api/p/${slug}/read`, { method: "POST" }).catch(() => {});
+    // Count the read once; listeners below must still re-attach if the effect
+    // re-runs (React dev double-invokes effects).
+    if (!started.current) {
+      started.current = true;
+      fetch(`/api/p/${slug}/read`, { method: "POST" }).catch(() => {});
+    }
 
     let lastTick = Date.now();
-
-    /** Furthest point reached, as a % of the scrollable page. */
-    const measureScroll = () => {
-      const doc = document.documentElement;
-      const scrollable = doc.scrollHeight - window.innerHeight;
-      // A packet shorter than the viewport has nothing to scroll to — the
-      // learner has seen all of it, so that counts as 100 rather than 0.
-      const pct = scrollable <= 0 ? 100 : ((window.scrollY + window.innerHeight) / doc.scrollHeight) * 100;
-      scrollPct.current = Math.max(scrollPct.current, Math.min(100, Math.round(pct)));
+    const done = loadDone(slug);
+    // A packet with no rounds has nothing left to read.
+    const measure = () => {
+      scrollPct.current =
+        totalRounds <= 0 ? 100 : Math.min(100, Math.round((done.size / totalRounds) * 100));
     };
-    measureScroll();
+    measure();
 
-    const flush = (useBeacon = false) => {
-      const secs = Math.round(pending.current);
-      measureScroll();
-      if (secs <= 0) return;
-      pending.current = 0;
-      const body = JSON.stringify({ seconds: secs, scrollPct: scrollPct.current });
+    const send = (body: string, useBeacon: boolean) => {
       if (useBeacon && navigator.sendBeacon) {
         navigator.sendBeacon(`/api/p/${slug}/heartbeat`, new Blob([body], { type: "application/json" }));
       } else {
@@ -48,6 +68,24 @@ export function ReadTracker({ slug }: { slug: string }) {
           keepalive: true,
         }).catch(() => {});
       }
+    };
+
+    const flush = (useBeacon = false) => {
+      const secs = Math.round(pending.current);
+      if (secs <= 0) return;
+      pending.current = 0;
+      send(JSON.stringify({ seconds: secs, scrollPct: scrollPct.current }), useBeacon);
+    };
+
+    const onRoundDone = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (!id || done.has(id)) return;
+      done.add(id);
+      saveDone(slug, done);
+      measure();
+      // Send progress now — a learner who leaves within the tick shouldn't lose it.
+      // seconds: 0 is fine; the heartbeat route records scroll on its own.
+      send(JSON.stringify({ seconds: 0, scrollPct: scrollPct.current }), false);
     };
 
     const interval = setInterval(() => {
@@ -72,18 +110,16 @@ export function ReadTracker({ slug }: { slug: string }) {
 
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", onHide);
-    window.addEventListener("scroll", measureScroll, { passive: true });
-    window.addEventListener("resize", measureScroll);
+    window.addEventListener(ROUND_DONE_EVENT, onRoundDone);
 
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", onHide);
-      window.removeEventListener("scroll", measureScroll);
-      window.removeEventListener("resize", measureScroll);
+      window.removeEventListener(ROUND_DONE_EVENT, onRoundDone);
       onHide();
     };
-  }, [slug]);
+  }, [slug, totalRounds]);
 
   return null;
 }

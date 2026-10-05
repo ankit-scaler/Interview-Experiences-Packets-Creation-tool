@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 const VAULT_URL = "https://scaler-ie.vercel.app/";
 
@@ -14,25 +14,23 @@ function log(slug?: string) {
   window.open(VAULT_URL, "_blank", "noopener");
 }
 
-/** Full-width CTA bar under the header — attention-seeking, mobile-friendly. */
-export function VaultBar({ slug }: { slug?: string }) {
+/** Interview Vault CTA card under the packet header. */
+export function VaultCard({ slug }: { slug?: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => log(slug)}
-      className="group flex w-full cursor-pointer flex-col items-start gap-2.5 border-l-[3px] border-[#818CF8] bg-[linear-gradient(90deg,#1E1B4B_0%,#312E81_100%)] px-6 py-3 text-left transition-[filter] duration-150 ease-out hover:brightness-[1.08] sm:h-[52px] sm:flex-row sm:items-center sm:justify-center sm:gap-4 sm:py-0"
-    >
-      <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <Sparkles className="h-4 w-4 shrink-0 animate-sparkle-pulse text-[#A5B4FC]" />
-        <span className="text-[15px] font-bold text-white">500+ companies × roles</span>
-        <span className="text-[13px] font-normal text-[#C7D2FE] sm:text-sm">
-          · questions, assignments, prep material
-        </span>
-      </span>
-      <span className="flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#6366F1] px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-150 ease-out group-hover:bg-[#818CF8] sm:w-auto">
+    <div className="flex flex-col gap-3.5 rounded-2xl bg-primary px-[18px] py-4 text-primary-foreground sm:flex-row sm:items-center sm:justify-between sm:px-[22px] sm:py-[18px]">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em]">Interview vault</p>
+        <p className="mt-0.5 text-xl font-bold leading-tight sm:text-[22px]">500+ companies × roles</p>
+        <p className="mt-0.5 text-[13px] sm:text-sm">Questions, assignments and prep material</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => log(slug)}
+        className="group inline-flex h-[43px] shrink-0 items-center justify-center gap-1.5 rounded-full bg-background px-[22px] text-[15px] font-bold text-primary transition-[filter] hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground sm:w-auto"
+      >
         Open vault
-        <ArrowRight className="h-3.5 w-3.5 shrink-0 transition-transform duration-150 ease-out group-hover:translate-x-[3px]" />
-      </span>
-    </button>
+        <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-[3px]" />
+      </button>
+    </div>
   );
 }

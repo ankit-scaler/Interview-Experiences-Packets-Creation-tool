@@ -1,37 +1,37 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
+/** Mirrors the reader layout: header, vault card, rounds rail, question cards. */
 export default function Loading() {
   return (
-    <div className="flex min-h-screen flex-col" role="status" aria-live="polite">
+    <div className="learner flex min-h-screen flex-col bg-background" role="status" aria-live="polite">
       <span className="sr-only">Loading your interview packet</span>
       <div className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-3xl items-center px-4">
+        <div className="flex h-[55px] items-center px-4 sm:px-6">
           <Skeleton className="h-5 w-24" />
-          <Skeleton className="ml-auto h-9 w-9" />
+          <Skeleton className="ml-auto h-[30px] w-[90px]" />
         </div>
       </div>
       <div className="px-4">
-        <div className="mx-auto max-w-3xl py-6 sm:py-10">
-          <div className="overflow-hidden rounded-2xl border border-border bg-card elev">
-            <div className="space-y-2 border-b border-border px-6 py-6 sm:px-8 sm:py-8">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-7 w-3/4" />
-              <Skeleton className="h-4 w-2/3" />
+        <div className="mx-auto max-w-[1040px] pb-12 pt-5 sm:pt-7">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="mt-3 h-9 w-3/4" />
+          <Skeleton className="mt-3 h-4 w-60" />
+          <Skeleton className="mt-6 h-[100px] w-full rounded-2xl" />
+          <div className="mt-6 md:grid md:grid-cols-[210px_minmax(0,1fr)] md:gap-7">
+            <div className="flex gap-1.5 md:flex-col md:gap-1">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-10 min-w-[168px] md:min-w-0" />
+              ))}
             </div>
-            {[0, 1].map((r) => (
-              <div key={r} className="space-y-4 border-b border-border px-6 py-6 last:border-0 sm:px-8 sm:py-8">
-                <div className="flex items-center gap-4">
-                  <Skeleton className="h-7 w-7 rounded-full" />
-                  <Skeleton className="h-5 w-48" />
+            <div className="mt-5 space-y-2 md:mt-0">
+              <Skeleton className="mb-4 h-6 w-48" />
+              {[0, 1, 2, 3].map((q) => (
+                <div key={q} className="space-y-2 rounded-xl border border-border bg-card px-4 py-4">
+                  <Skeleton className="h-4" />
+                  <Skeleton className="h-4 w-3/5" />
                 </div>
-                {[0, 1, 2].map((q) => (
-                  <div key={q} className="space-y-2 pl-8">
-                    <Skeleton className="h-4" />
-                    <Skeleton className="h-4 w-4/5" />
-                  </div>
-                ))}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

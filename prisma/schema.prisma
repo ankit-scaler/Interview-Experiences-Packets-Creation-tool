@@ -308,8 +308,9 @@ model PacketRead {
   firstReadAt DateTime @default(now())
   lastReadAt  DateTime @default(now())
   readDays    Int      @default(1)
-  // Furthest the learner has ever scrolled through this packet, 0-100. A packet
-  // shorter than the viewport counts as 100 (nothing left to scroll to).
+  // Reading progress, 0-100: rounds the learner scrolled to the end of ÷ total
+  // rounds (2 of 4 = 50). Only ever climbs. Before 2026-10-05 this was page-scroll
+  // depth of the single-page layout, so older values aren't comparable.
   scrollPct   Int      @default(0)
   syncedAt    DateTime?
 

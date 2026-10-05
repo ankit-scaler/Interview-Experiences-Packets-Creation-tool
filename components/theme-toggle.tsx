@@ -5,12 +5,31 @@ import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function ThemeToggle({ className }: { className?: string }) {
+/** Icon button by default; `label` renders the text variant ("Dark mode" / "Light mode"). */
+export function ThemeToggle({ className, label }: { className?: string; label?: boolean }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const isDark = mounted && resolvedTheme === "dark";
+
+  if (label) {
+    return (
+      <button
+        type="button"
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+        className={cn(
+          "inline-flex h-[30px] items-center rounded-md border border-border bg-card px-2.5 text-[13px] font-medium text-foreground transition-colors hover:bg-subtle",
+          className,
+        )}
+      >
+        {/* Fixed width until mounted, so the label doesn't flash the wrong mode. */}
+        <span className={cn("min-w-[4.5rem] text-center", !mounted && "invisible")}>
+          {isDark ? "Light mode" : "Dark mode"}
+        </span>
+      </button>
+    );
+  }
 
   return (
     <button

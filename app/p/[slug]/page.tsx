@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ExternalLink } from "lucide-react";
 import { currentUser } from "@/auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -8,11 +7,14 @@ import { getPublishedPacket } from "@/lib/packets";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ReadTracker } from "@/components/read-tracker";
 import { FeedbackFab } from "@/components/feedback-fab";
-import { VaultBar } from "@/components/vault-button";
+import { VaultCard } from "@/components/vault-button";
+import { PacketReader } from "@/components/packet-reader";
 import { LearnerMenu } from "@/components/learner-menu";
 import { ScalerLogo } from "@/components/scaler-logo";
 
 export const dynamic = "force-dynamic";
+
+const YOE_LABEL: Record<string, string> = { LT2: "< 2 yrs", B2_5: "2–5 yrs", GT5: "5+ yrs" };
 
 export default async function LearnerPacketPage({ params }: { params: { slug: string } }) {
   const user = await currentUser();
@@ -49,73 +51,49 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
       })
     : null;
 
-  return (
-    <Shell email={user.email} slug={params.slug}>
-      <ReadTracker slug={params.slug} />
-      <div className="mx-auto max-w-3xl py-6 sm:py-10">
-        <article className="overflow-hidden rounded-2xl border border-border bg-card elev">
-          <header className="border-b border-border px-6 py-6 sm:px-8 sm:py-8">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Interview packet
-            </p>
-            <h1 className="mt-2 text-balance text-xl font-bold leading-tight tracking-tight sm:text-[26px]">
-              {packet.company} — {packet.role}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Round-wise questions from interviews that already happened.
-            </p>
-          </header>
+  // Empty rounds aren't shown and don't count toward reading progress.
+  const rounds = packet.rounds
+    .filter((r) => r.questions.length > 0)
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      duration: r.duration,
+      isSpillover: r.isSpillover,
+      questions: r.questions,
+    }));
+  const questionCount = rounds.reduce((n, r) => n + r.questions.length, 0);
 
-          <div className="divide-y divide-border">
-            {packet.rounds.map((round, ri) => (
-              <section key={round.id} className="scroll-mt-20 px-6 py-6 sm:px-8 sm:py-8">
-                <div className="mb-4 flex items-baseline gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                    {round.isSpillover ? "＋" : ri + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <h2 className="text-base font-semibold leading-tight sm:text-lg">
-                      {round.name}
-                    </h2>
-                    {round.duration && (
-                      <p className="text-xs text-muted-foreground sm:text-sm">
-                        {round.duration}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <ol className="space-y-1">
-                  {round.questions.map((q, i) => (
-                    <li
-                      key={q.id}
-                      className="group flex gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 sm:gap-4 sm:px-3"
-                    >
-                      <span className="select-none pt-[3px] text-sm font-semibold tabular-nums text-muted-foreground">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-pretty text-[15px] leading-7 sm:text-base">
-                          {q.displayText}
-                        </p>
-                        {q.problemLink && (
-                          <a
-                            href={q.problemLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 inline-flex items-center gap-2 rounded-md border border-accent/25 bg-accent/5 px-2 py-1 text-xs font-semibold text-accent transition-colors hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                            Solve this question
-                          </a>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ))}
-          </div>
-        </article>
+  return (
+    <Shell email={user.email}>
+      <ReadTracker slug={params.slug} totalRounds={rounds.length} />
+      <div className="mx-auto max-w-[1040px] pb-12 pt-5 sm:pt-7">
+        <header>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-warning">Interview packet</p>
+          <h1 className="mt-2 text-balance text-[26px] font-bold leading-tight tracking-tight sm:text-[36px]">
+            {packet.company} — {packet.role}
+          </h1>
+          <p className="mt-2.5 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] text-muted-foreground">
+            <span>{rounds.length} {rounds.length === 1 ? "round" : "rounds"}</span>
+            <span>{questionCount} {questionCount === 1 ? "question" : "questions"}</span>
+            <span>
+              {packet.role} · {YOE_LABEL[packet.yoeBucket] ?? packet.yoeBucket}
+            </span>
+          </p>
+        </header>
+
+        <div className="mt-5 sm:mt-6">
+          <VaultCard slug={params.slug} />
+        </div>
+
+        <div className="mt-5 sm:mt-6">
+          {rounds.length ? (
+            <PacketReader rounds={rounds} />
+          ) : (
+            <p className="rounded-xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+              No questions in this packet yet.
+            </p>
+          )}
+        </div>
       </div>
 
       <FeedbackFab
@@ -134,30 +112,22 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
   );
 }
 
-function Shell({
-  children,
-  email,
-  slug,
-}: {
-  children: React.ReactNode;
-  email?: string | null;
-  slug?: string;
-}) {
+/** `learner` scopes the teal reading palette (globals.css) to this page. */
+function Shell({ children, email }: { children: React.ReactNode; email?: string | null }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="learner flex min-h-screen flex-col bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
+        <div className="flex h-[55px] items-center gap-2 px-4 sm:px-6">
           <ScalerLogo className="h-5 sm:h-[22px]" />
           <div className="ml-auto flex items-center gap-2">
-            <ThemeToggle />
+            <ThemeToggle label />
             {email ? <LearnerMenu email={email} /> : null}
           </div>
         </div>
-        {slug ? <VaultBar slug={slug} /> : null}
       </header>
       <div className="flex-1 px-4">{children}</div>
       <footer className="border-t border-border">
-        <p className="mx-auto max-w-3xl px-4 py-6 text-xs text-muted-foreground">
+        <p className="mx-auto max-w-[1040px] px-4 py-6 text-xs text-muted-foreground">
           Beta — email{" "}
           <Link href={`mailto:${env.contactEmail}`} className="font-medium text-foreground underline underline-offset-2">
             {env.contactEmail}
