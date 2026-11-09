@@ -35,4 +35,5 @@ export const ACTION_LABEL: Record<AdminAction, string> = {
   QUESTION_ADDED: "Added question",
   QUESTION_EDITED: "Edited question",
   QUESTION_DELETED: "Removed question",
+  PACKET_RESET: "Reset packet",
 };

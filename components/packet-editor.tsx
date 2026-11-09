@@ -12,15 +12,24 @@ import {
   Eye,
   EyeOff,
   Gauge,
+  Flag,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { AddOnsEditor } from "@/components/addons-editor";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { GenerationProgress } from "@/components/generation-progress";
 import { TRACK_LABEL, YOE_LABEL } from "@/lib/labels";
-import { formatUsd, formatDateTime } from "@/lib/utils";
+import { splitTopic, joinTopic } from "@/lib/topic";
+import { formatUsd, formatDateTime, cn } from "@/lib/utils";
+import { moveId } from "@/lib/sections";
+import { ResetPacketDialog } from "@/components/reset-packet-dialog";
 
 type QSource = "SHEET" | "WEB" | "JD_SPILLOVER" | "MANUAL";
 
@@ -56,6 +65,7 @@ interface PData {
   sourceMode: "SHEET_ONLY" | "SHEET_PLUS_WEB";
   allowHigherCost: boolean;
   jdSummary: string | null;
+  addOns: string | null;
   lifetimeCostUsd: number;
   lastGeneratedAt: string | null;
   costByPurpose: Record<string, number>;
@@ -106,6 +116,53 @@ export function PacketEditor({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canOverrideCost = viewerEmail?.toLowerCase() === COST_OVERRIDE_EMAIL;
+  const [resetOpen, setResetOpen] = useState(false);
+
+  // Collapsed round ids, remembered per packet. Storage can be blocked — then
+  // everything just starts expanded.
+  const storageKey = `packet-collapsed:${packet.id}`;
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
+  function persistCollapsed(next: Set<string>) {
+    setCollapsed(next);
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify([...next]));
+    } catch {
+      /* storage blocked — state still works for this visit */
+    }
+  }
+  function toggleRound(id: string) {
+    const next = new Set(collapsed);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    persistCollapsed(next);
+  }
+
+  const movableIds = rounds.filter((r) => !r.isSpillover).map((r) => r.id);
+  const [movingId, setMovingId] = useState<string | null>(null);
+  async function moveRound(id: string, dir: -1 | 1) {
+    const orderedIds = moveId(movableIds, id, dir);
+    if (orderedIds === movableIds) return;
+    setMovingId(id);
+    setError(null);
+    try {
+      await api(`/api/packets/${packet.id}/rounds/reorder`, "POST", { orderedIds });
+      setRounds((rs) => {
+        const byId = new Map(rs.map((r) => [r.id, r]));
+        return [...orderedIds.map((rid) => byId.get(rid)!), ...rs.filter((r) => r.isSpillover)];
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not reorder rounds");
+    } finally {
+      setMovingId(null);
+    }
+  }
 
   const learnerUrl = `${appUrl.replace(/\/$/, "")}/p/${packet.slug}`;
   const questionCount = useMemo(
@@ -140,27 +197,33 @@ export function PacketEditor({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link href="/packets" className="text-xs text-muted-foreground hover:underline">
-            ← All packets
-          </Link>
-          <h1 className="mt-1 text-lg font-semibold">
-            {packet.company} — {packet.role}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {TRACK_LABEL[packet.track]} · {YOE_LABEL[packet.yoeBucket]}
-            {packet.stack ? ` · ${packet.stack}` : ""} · {packet.location} ·{" "}
-            {packet.sourceMode === "SHEET_PLUS_WEB" ? "Sheet + web" : "Sheet only"}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {status === "PUBLISHED" ? (
-            <Badge variant="success">Published</Badge>
-          ) : (
-            <Badge variant="warning">Draft</Badge>
-          )}
-          <CopyLinkButton url={learnerUrl} disabled={status !== "PUBLISHED"} />
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
+        <Link href="/packets" className="text-xs text-muted-foreground hover:underline">
+          ← All packets
+        </Link>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold tracking-tight">
+                {packet.company} — {packet.role}
+              </h1>
+              {status === "PUBLISHED" ? (
+                <Badge variant="success">Published</Badge>
+              ) : (
+                <Badge variant="warning">Draft</Badge>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {TRACK_LABEL[packet.track]} · {YOE_LABEL[packet.yoeBucket]}
+              {packet.stack ? ` · ${packet.stack}` : ""} · {packet.location} ·{" "}
+              {packet.sourceMode === "SHEET_PLUS_WEB" ? "Sheet + web" : "Sheet only"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {questionCount} questions · {rounds.length} rounds
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyLinkButton url={learnerUrl} disabled={status !== "PUBLISHED"} />
           <Button
             variant="outline"
             size="sm"
@@ -225,6 +288,15 @@ export function PacketEditor({
             )}
           </Button>
           <Button
+              variant="outline"
+              size="sm"
+              disabled={busy !== null}
+              onClick={() => setResetOpen(true)}
+            >
+              <RotateCcw className="h-4 w-4 text-destructive" />
+              Reset
+            </Button>
+          <Button
             variant="ghost"
             size="icon"
             aria-label="Delete packet"
@@ -240,10 +312,22 @@ export function PacketEditor({
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
+          </div>
         </div>
       </div>
 
       <GenerationProgress packetId={packet.id} initialActive={initialJobActive} />
+
+      <ResetPacketDialog
+        packetId={packet.id}
+        company={packet.company}
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        onDone={() => {
+          setResetOpen(false);
+          router.refresh(); // picks up the new generation job, same as "Pull new questions"
+        }}
+      />
 
       {error && (
         <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
@@ -291,12 +375,34 @@ export function PacketEditor({
         </div>
       </details>
 
+      <AddOnsEditor packetId={packet.id} initial={packet.addOns} />
+
       {/* Rounds */}
-      <div className="space-y-4">
+      <div className="space-y-3">
+        {rounds.length > 1 && (
+          <div className="flex items-center justify-end gap-1.5">
+            <Button size="sm" variant="ghost" onClick={() => persistCollapsed(new Set())}>
+              Expand all
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => persistCollapsed(new Set(rounds.map((r) => r.id)))}
+            >
+              Collapse all
+            </Button>
+          </div>
+        )}
         {rounds.map((round) => (
           <RoundBlock
             key={round.id}
             round={round}
+            open={!collapsed.has(round.id)}
+            onToggle={() => toggleRound(round.id)}
+            canMoveUp={!round.isSpillover && movableIds.indexOf(round.id) > 0}
+            canMoveDown={!round.isSpillover && movableIds.indexOf(round.id) < movableIds.length - 1}
+            moving={movingId === round.id}
+            onMove={(dir) => moveRound(round.id, dir)}
             llmReady={llmReady}
             onRoundPatch={(patch) => patchRound(round.id, patch)}
             onQuestionPatch={(qid, patch) => patchQuestion(round.id, qid, patch)}
@@ -323,6 +429,12 @@ export function PacketEditor({
 
 function RoundBlock({
   round,
+  open,
+  onToggle,
+  canMoveUp,
+  canMoveDown,
+  moving,
+  onMove,
   llmReady,
   onRoundPatch,
   onQuestionPatch,
@@ -331,6 +443,12 @@ function RoundBlock({
   onQuestionAdded,
 }: {
   round: RData;
+  open: boolean;
+  onToggle: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  moving: boolean;
+  onMove: (dir: -1 | 1) => void;
   llmReady: boolean;
   onRoundPatch: (p: Partial<RData>) => void;
   onQuestionPatch: (qid: string, p: Partial<QData>) => void;
@@ -353,7 +471,17 @@ function RoundBlock({
 
   return (
     <section className="rounded-lg border border-border bg-card">
-      <header className="flex flex-wrap items-center gap-2 border-b border-border p-3">
+      <header className={cn("flex flex-wrap items-center gap-2 p-3", open && "border-b border-border")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-label={open ? `Collapse ${round.name}` : `Expand ${round.name}`}
+          aria-expanded={open}
+          onClick={onToggle}
+        >
+          <ChevronDown className={cn("h-4 w-4 transition-transform", !open && "-rotate-90")} />
+        </Button>
         <Input
           value={round.name}
           onChange={(e) => onRoundPatch({ name: e.target.value })}
@@ -378,6 +506,31 @@ function RoundBlock({
         <span className="ml-auto text-xs text-muted-foreground">
           {round.questions.length} question{round.questions.length === 1 ? "" : "s"}
         </span>
+        {!round.isSpillover && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={`Move ${round.name} up`}
+              disabled={!canMoveUp || moving}
+              onClick={() => onMove(-1)}
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={`Move ${round.name} down`}
+              disabled={!canMoveDown || moving}
+              loading={moving}
+              onClick={() => onMove(1)}
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+          </>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -396,6 +549,8 @@ function RoundBlock({
         </Button>
       </header>
 
+      {open && (
+      <>
       <ul className="divide-y divide-border">
         {round.questions.map((q, i) => (
           <QuestionCard
@@ -457,6 +612,8 @@ function RoundBlock({
           </Button>
         )}
       </div>
+      </>
+      )}
     </section>
   );
 }
@@ -474,18 +631,28 @@ function QuestionCard({
   onPatch: (p: Partial<QData>) => void;
   onRemoved: () => void;
 }) {
-  const [text, setText] = useState(q.displayText);
+  // JD-spillover questions carry a "[Topic] " prefix: show it as a flag and
+  // edit only the question body, re-attaching the prefix on save.
+  const { topic, body: displayBody } = splitTopic(q.displayText);
+  const improvedBody = splitTopic(q.improvedText).body;
+  const [text, setText] = useState(displayBody);
   const [link, setLink] = useState(q.problemLink ?? "");
   const [findingLink, setFindingLink] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const badge = SOURCE_BADGE[q.source];
-  const differs = q.originalText.trim() !== q.improvedText.trim();
+  const differs = q.originalText.trim() !== improvedBody.trim();
 
   return (
     <li className="space-y-2 p-3">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className="font-mono">{index}</span>
         <Badge variant={badge.variant}>{badge.label}</Badge>
+        {topic && (
+          <Badge variant="default" title="Topic from the job description">
+            <Flag className="mr-1 h-3 w-3" />
+            {topic}
+          </Badge>
+        )}
         {q.occurrences > 1 && (
           <Badge variant="secondary" title="Number of candidates who reported this question">
             asked ×{q.occurrences}
@@ -520,14 +687,14 @@ function QuestionCard({
           </div>
           <div>
             <p className="mb-1 font-medium text-muted-foreground">Improved</p>
-            <p>{q.improvedText}</p>
-            {text !== q.improvedText && (
+            <p>{improvedBody}</p>
+            {text !== improvedBody && (
               <button
                 className="mt-1 underline"
                 onClick={() => {
-                  setText(q.improvedText);
-                  onPatch({ displayText: q.improvedText });
-                  api(`/api/questions/${q.id}`, "PATCH", { displayText: q.improvedText });
+                  setText(improvedBody);
+                  onPatch({ displayText: joinTopic(topic, improvedBody) });
+                  api(`/api/questions/${q.id}`, "PATCH", { displayText: joinTopic(topic, improvedBody) });
                 }}
               >
                 use this
@@ -538,8 +705,8 @@ function QuestionCard({
                 className="ml-2 underline"
                 onClick={() => {
                   setText(q.originalText);
-                  onPatch({ displayText: q.originalText });
-                  api(`/api/questions/${q.id}`, "PATCH", { displayText: q.originalText });
+                  onPatch({ displayText: joinTopic(topic, q.originalText) });
+                  api(`/api/questions/${q.id}`, "PATCH", { displayText: joinTopic(topic, q.originalText) });
                 }}
               >
                 use original
@@ -553,9 +720,10 @@ function QuestionCard({
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={() => {
-          if (text.trim() && text !== q.displayText) {
-            onPatch({ displayText: text, editedByAdmin: true });
-            api(`/api/questions/${q.id}`, "PATCH", { displayText: text.trim() });
+          if (text.trim() && text !== displayBody) {
+            const full = joinTopic(topic, text.trim());
+            onPatch({ displayText: full, editedByAdmin: true });
+            api(`/api/questions/${q.id}`, "PATCH", { displayText: full });
           }
         }}
         rows={2}

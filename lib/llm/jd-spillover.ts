@@ -11,13 +11,14 @@ const SYSTEM = `You analyse a job description against the topics already covered
 Task:
 1. Write a 2-3 sentence internal summary of the JD (tech stack, seniority, focus areas).
 2. Identify significant technologies/skills named in the JD that are NOT represented in the covered topics.
-3. For each such tech (max 5), write ~10 interview questions that a candidate for THIS role would realistically be asked, at the right seniority. Specific, self-contained, no answers.
+3. For each such tech (max 5), write ~10 interview questions that a candidate for THIS role would realistically be asked, at the right seniority. Specific, self-contained, no answers. Order each tech's questions from most commonly asked to least. Do not repeat any question listed under "Already in the packet".
 Return strict JSON: {"jdSummary":string,"missingTechs":[{"tech":string,"questions":[string,...]}]}`;
 
 export async function jdSpillover(
   ctx: PacketContext,
   coveredTopics: string[],
   meta: { jobId?: string; packetId?: string },
+  existingQuestions: string[] = [],
 ): Promise<SpilloverResult> {
   if (!ctx.jdText.trim()) return { jdSummary: "", missingTechs: [] };
 
@@ -26,6 +27,9 @@ Level: ${ctx.level}
 
 Covered topics already in the packet:
 ${coveredTopics.slice(0, 120).join(", ") || "(none)"}
+
+Already in the packet (do not repeat):
+${existingQuestions.slice(0, 80).map((q) => `- ${q.slice(0, 120)}`).join("\n") || "(none)"}
 
 Job description:
 """

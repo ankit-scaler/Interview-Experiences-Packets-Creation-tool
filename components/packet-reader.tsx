@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ExternalLink, Search } from "lucide-react";
+import { ArrowRight, ExternalLink, Flag, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { splitTopic } from "@/lib/topic";
 import { ROUND_DONE_EVENT } from "@/components/read-tracker";
 
 export interface ReaderRound {
@@ -144,13 +145,20 @@ export function PacketReader({ rounds }: { rounds: ReaderRound[] }) {
         <ol className="mt-4 space-y-2">
           {visible.map((x) => {
             const n = round.questions.indexOf(x) + 1;
+            const { topic, body } = splitTopic(x.displayText);
             return (
               <li key={x.id} className="flex gap-3 rounded-xl border border-border bg-card px-3.5 py-3.5 sm:gap-3 sm:px-4">
                 <span className="w-7 shrink-0 select-none pt-[3px] font-mono text-[13px] tabular-nums text-muted-foreground">
                   {String(n).padStart(2, "0")}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-pretty text-[15px] font-medium leading-6 sm:text-base">{x.displayText}</p>
+                  {topic && (
+                    <span className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+                      <Flag className="h-3 w-3" />
+                      {topic}
+                    </span>
+                  )}
+                  <p className="text-pretty text-[15px] font-medium leading-6 sm:text-base">{body}</p>
                   {x.problemLink && (
                     <a
                       href={x.problemLink}
@@ -165,7 +173,7 @@ export function PacketReader({ rounds }: { rounds: ReaderRound[] }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => copy(x.id, x.displayText)}
+                  onClick={() => copy(x.id, body)}
                   aria-live="polite"
                   className="h-fit shrink-0 rounded px-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >

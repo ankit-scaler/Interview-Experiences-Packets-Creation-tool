@@ -2,11 +2,13 @@ import { z } from "zod";
 import { apiError, guardAdmin, json } from "@/lib/api";
 import { db } from "@/lib/db";
 import { activityPacket, logActivity } from "@/lib/activity";
+import { ADDONS_MAX, normalizeAddOns } from "@/lib/sections";
 
 export const runtime = "nodejs";
 
 const Patch = z.object({
   stack: z.string().max(120).nullable().optional(),
+  addOns: z.string().max(ADDONS_MAX).nullable().optional(),
   sourceMode: z.enum(["SHEET_ONLY", "SHEET_PLUS_WEB"]).optional(),
   allowHigherCost: z.boolean().optional(),
   rounds: z
@@ -28,6 +30,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return apiError(parsed.error.issues[0]?.message ?? "Invalid input");
   const { rounds, ...packetFields } = parsed.data;
+  if (packetFields.addOns !== undefined) packetFields.addOns = normalizeAddOns(packetFields.addOns);
 
   if (Object.keys(packetFields).length) {
     await db.packet.update({ where: { id: params.id }, data: packetFields });

@@ -34,6 +34,7 @@ const TONE: Record<AdminAction, string> = {
   PACKET_DELETED: "bg-destructive/10 text-destructive",
   ROUND_DELETED: "bg-destructive/10 text-destructive",
   QUESTION_DELETED: "bg-destructive/10 text-destructive",
+  PACKET_RESET: "bg-destructive/10 text-destructive",
 };
 
 export function ActivityLog({

@@ -9,6 +9,7 @@ import { ReadTracker } from "@/components/read-tracker";
 import { FeedbackFab } from "@/components/feedback-fab";
 import { VaultCard } from "@/components/vault-button";
 import { PacketReader } from "@/components/packet-reader";
+import { AddOnsCard } from "@/components/addons-card";
 import { LearnerMenu } from "@/components/learner-menu";
 import { ScalerLogo } from "@/components/scaler-logo";
 
@@ -80,6 +81,12 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
             </span>
           </p>
         </header>
+
+        {packet.addOns?.trim() && (
+          <div className="mt-5 sm:mt-6">
+            <AddOnsCard markdown={packet.addOns} />
+          </div>
+        )}
 
         <div className="mt-5 sm:mt-6">
           <VaultCard slug={params.slug} />

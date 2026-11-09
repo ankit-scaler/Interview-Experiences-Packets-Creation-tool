@@ -112,6 +112,7 @@ model Packet {
   jdText          String?      @db.Text
   jdFileName      String?
   jdSummary       String?      @db.Text
+  addOns          String?      @db.Text // admin-written markdown, shown to learners when non-empty
   sourceMode      SourceMode   @default(SHEET_ONLY)
   webSources      String[]     @default([])
   allowHigherCost Boolean      @default(false)
@@ -383,6 +384,7 @@ enum AdminAction {
   QUESTION_ADDED
   QUESTION_EDITED
   QUESTION_DELETED
+  PACKET_RESET
 }
 
 /**

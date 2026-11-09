@@ -18,3 +18,12 @@
 - Completed rounds are kept in `localStorage` (`rounds-done:<slug>`) so return visits add up on the same browser. Visits on other devices don't merge, though the server keeps the highest value it has seen.
 - Values before this date were page-scroll depth of the single-page layout and are not comparable.
 - Rejected: all rounds stacked (keeps the old metric but diverges from Figma), and one-round view with page scroll (the metric becomes meaningless).
+
+## 2026-11-09 — Packet sections, Add-Ons, reset (phase 1)
+- **Sections = rounds for phase 1; custom sections later.** Why: covers add/move/collapse with no model rewrite. Rejected: making header, rounds, JD and Add-Ons one generic ordered list.
+- **Add-Ons is a nullable `Packet.addOns` markdown column**, not a table. Why: one special section per packet. Rejected: list-of-items model, plain text.
+- **Up/Down buttons, not drag-and-drop.** Why: no new library, touch/keyboard friendly.
+- **Reset keeps the packet and learner link; Add-Ons kept unless a box is ticked.** Why: "refresh", not delete. Rejected: deleting the packet; always wiping Add-Ons.
+- **JD round is capped at 50 in total** (earlier today): a pull only fills remaining slots. Rejected: 50 new per pull.
+- **JD topic shown as a flag by parsing the stored `[Topic] ` prefix on render.** Why: no migration, fixes existing data. Rejected: a `topic` column.
+- **Add-Ons use an explicit Save button, not save-on-blur** (2026-11-09). Why: a half-typed note would otherwise go live to learners. Rejected: autosave.

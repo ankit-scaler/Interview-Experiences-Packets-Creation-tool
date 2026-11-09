@@ -509,29 +509,72 @@ export async function runStep(jobId: string): Promise<JobStep> {
             ...(scratch.coveredTopics ?? []),
             ...draftRounds.flatMap((r) => r.questions.slice(0, 3).map((q) => q.text.slice(0, 80))),
           ]);
-          const spill = await jdSpillover(ctx, covered, meta);
+          // On APPEND, don't re-add JD questions the packet already has (or the
+          // admin deleted): block-list them and tell the model to avoid them.
+          const [existingJd, suppressed] =
+            job.kind === "APPEND"
+              ? await Promise.all([
+                  db.question.findMany({
+                    where: { packetId: packet.id, status: "ACTIVE", source: "JD_SPILLOVER" },
+                    select: { originalText: true, normalizedText: true },
+                  }),
+                  db.suppressedQuestion.findMany({
+                    where: { packetId: packet.id },
+                    select: { normalizedText: true },
+                  }),
+                ])
+              : [[], []];
+          // The JD round holds 50 questions in total: a pull only fills what's left.
+          const remaining = MAX_QUESTIONS_PER_ROUND - existingJd.length;
+          if (remaining <= 0) {
+            await log(job, `JD round already has ${existingJd.length} questions (max ${MAX_QUESTIONS_PER_ROUND}) — skipped.`);
+            await save(jobId, { ...scratch, draftRounds, jdSummary }, next(step), { spillover: 0 });
+            return next(step);
+          }
+          const spill = await jdSpillover(
+            ctx,
+            covered,
+            meta,
+            existingJd.map((e) => e.originalText),
+          );
           jdSummary = spill.jdSummary;
           if (spill.missingTechs.length) {
-            const questions = spill.missingTechs.flatMap((t) =>
-              t.questions.map((q) => ({
-                text: `[${t.tech}] ${q}`,
-                originalText: q,
-                source: "JD_SPILLOVER" as const,
-                problemLink: null,
-                problemLinkSource: null,
-                normalizedText: normalizeQuestion(q),
-                sheetRef: null,
-                occurrences: 1,
-                latestTs: Date.now(),
-              })),
-            );
-            draftRounds.push({
-              key: "jd-spillover",
-              name: "Frequently Asked Question Based on JD",
-              duration: null,
-              isSpillover: true,
-              questions: questions.slice(0, MAX_QUESTIONS_PER_ROUND),
+            // Round-robin across techs (each list is most-asked-first) so the
+            // top-50 cap keeps the best of every tech, not just the first few.
+            const interleaved: { tech: string; q: string }[] = [];
+            const longest = Math.max(...spill.missingTechs.map((t) => t.questions.length));
+            for (let i = 0; i < longest; i++) {
+              for (const t of spill.missingTechs) {
+                if (t.questions[i]) interleaved.push({ tech: t.tech, q: t.questions[i] });
+              }
+            }
+            const seen = [...existingJd, ...suppressed].map((e) => e.normalizedText);
+            const fresh = interleaved.filter(({ q }) => {
+              const n = normalizeQuestion(q);
+              if (seen.some((o) => questionSimilarity(o, n) >= 0.85)) return false;
+              seen.push(n);
+              return true;
             });
+            const questions = fresh.slice(0, remaining).map(({ tech, q }) => ({
+              text: `[${tech}] ${q}`,
+              originalText: q,
+              source: "JD_SPILLOVER" as const,
+              problemLink: null,
+              problemLinkSource: null,
+              normalizedText: normalizeQuestion(q),
+              sheetRef: null,
+              occurrences: 1,
+              latestTs: Date.now(),
+            }));
+            if (questions.length) {
+              draftRounds.push({
+                key: "jd-spillover",
+                name: "Frequently Asked Question Based on JD",
+                duration: null,
+                isSpillover: true,
+                questions,
+              });
+            }
           }
           await log(job, `JD spillover: ${spill.missingTechs.map((t) => t.tech).join(", ") || "none"}.`);
         }
