@@ -113,6 +113,7 @@ model Packet {
   jdFileName      String?
   jdSummary       String?      @db.Text
   addOns          String?      @db.Text // admin-written markdown, shown to learners when non-empty
+  prepMaterial    String?      @db.Text // admin-pasted markdown (HackMD), shown to learners above the rounds when non-empty
   sourceMode      SourceMode   @default(SHEET_ONLY)
   webSources      String[]     @default([])
   allowHigherCost Boolean      @default(false)
@@ -134,6 +135,7 @@ model Packet {
   feedback    Feedback[]
   llmCalls    LlmCall[]
   vaultClicks VaultClick[]
+  prepReads   PrepRead[]
 
   @@unique([track, companyNorm, roleNorm, yoeBucket])
 }
@@ -332,6 +334,27 @@ model PacketReadDay {
   @@unique([packetReadId, day])
 }
 
+/**
+ * Preparatory Kit reading, one row per learner × packet. Kept apart from
+ * PacketRead so round-progress numbers are unaffected.
+ */
+model PrepRead {
+  id           String    @id @default(cuid())
+  packetId     String
+  packet       Packet    @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  userEmail    String
+  userId       String?
+  firstReadAt  DateTime  @default(now())
+  lastReadAt   DateTime  @default(now())
+  maxScrollPct Int       @default(0) // furthest point of the kit seen, 0-100, only climbs
+  maxScrollAt  DateTime? // when that furthest point was first reached
+  secondsTotal Int       @default(0) // active time on the kit, all days
+
+  @@unique([packetId, userEmail])
+  @@index([packetId])
+  @@index([userEmail])
+}
+
 model VaultClick {
   id        String   @id @default(cuid())
   packetId  String?
@@ -385,6 +408,7 @@ enum AdminAction {
   QUESTION_EDITED
   QUESTION_DELETED
   PACKET_RESET
+  PREP_EDITED
 }
 
 /**

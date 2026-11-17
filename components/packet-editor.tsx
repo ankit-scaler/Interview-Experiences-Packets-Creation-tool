@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AddOnsEditor } from "@/components/addons-editor";
+import { PrepEditor } from "@/components/prep-editor";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { GenerationProgress } from "@/components/generation-progress";
 import { TRACK_LABEL, YOE_LABEL } from "@/lib/labels";
@@ -66,6 +67,7 @@ interface PData {
   allowHigherCost: boolean;
   jdSummary: string | null;
   addOns: string | null;
+  prepMaterial: string | null;
   lifetimeCostUsd: number;
   lastGeneratedAt: string | null;
   costByPurpose: Record<string, number>;
@@ -376,6 +378,7 @@ export function PacketEditor({
       </details>
 
       <AddOnsEditor packetId={packet.id} initial={packet.addOns} />
+      <PrepEditor packetId={packet.id} initial={packet.prepMaterial} />
 
       {/* Rounds */}
       <div className="space-y-3">

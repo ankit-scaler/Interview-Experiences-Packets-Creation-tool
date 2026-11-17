@@ -15,6 +15,18 @@ export interface ReadLogRow {
   link: string;
 }
 
+export interface PrepLogRow {
+  company: string;
+  role: string;
+  email: string;
+  firstRead: string;
+  lastRead: string;
+  scrollPct: number;
+  scrollAt: string;
+  timeSpent: string;
+  link: string;
+}
+
 /** One point per calendar day in the picked range, zero-filled. */
 export interface DailyPoint {
   /** YYYY-MM-DD (UTC), matching how PacketReadDay stores its day. */
@@ -58,6 +70,8 @@ export interface TrackingSummary {
   topPackets: { company: string; role: string; slug: string; reads: number }[];
   recentFeedback: { company: string; role: string; stars: number; matched: string; comment: string | null }[];
   readLog: ReadLogRow[];
+  prepLog: PrepLogRow[];
+  prepReadCount: number;
   daily: DailyPoint[];
   llmOverview: LlmOverview;
   lastReadsSyncAt: string | null;
@@ -251,6 +265,22 @@ export async function trackingSummary(
         days: num(col(consumption, r, "Days read")),
         timeSpent: c("Time spent"),
         scrollPct: num(col(consumption, r, "Scroll %")),
+        link: c("Packet link"),
+      };
+    }),
+    prepReadCount: byKey["prep-kit"]?.rows.length ?? 0,
+    prepLog: (byKey["prep-kit"]?.rows ?? []).slice(0, 200).map((r) => {
+      const rep = byKey["prep-kit"];
+      const c = (h: string) => String(col(rep, r, h) ?? "");
+      return {
+        company: c("Company"),
+        role: c("Role"),
+        email: c("Learner email"),
+        firstRead: c("First read"),
+        lastRead: c("Last read"),
+        scrollPct: num(col(rep, r, "Max scroll %")),
+        scrollAt: c("Scroll reached at"),
+        timeSpent: c("Time spent"),
         link: c("Packet link"),
       };
     }),

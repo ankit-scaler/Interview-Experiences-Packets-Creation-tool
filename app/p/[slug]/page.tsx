@@ -10,6 +10,7 @@ import { FeedbackFab } from "@/components/feedback-fab";
 import { VaultCard } from "@/components/vault-button";
 import { PacketReader } from "@/components/packet-reader";
 import { AddOnsCard } from "@/components/addons-card";
+import { normalizePrep } from "@/lib/prep";
 import { LearnerMenu } from "@/components/learner-menu";
 import { ScalerLogo } from "@/components/scaler-logo";
 
@@ -63,11 +64,12 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
       questions: r.questions,
     }));
   const questionCount = rounds.reduce((n, r) => n + r.questions.length, 0);
+  const prep = normalizePrep(packet.prepMaterial);
 
   return (
     <Shell email={user.email}>
       <ReadTracker slug={params.slug} totalRounds={rounds.length} />
-      <div className="mx-auto max-w-[1040px] pb-12 pt-5 sm:pt-7">
+      <div className="mx-auto max-w-[1440px] pb-12 pt-5 sm:pt-7">
         <header>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-warning">Interview packet</p>
           <h1 className="mt-2 text-balance text-[26px] font-bold leading-tight tracking-tight sm:text-[36px]">
@@ -93,8 +95,8 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
         </div>
 
         <div className="mt-5 sm:mt-6">
-          {rounds.length ? (
-            <PacketReader rounds={rounds} />
+          {rounds.length || prep ? (
+            <PacketReader rounds={rounds} prep={prep} slug={params.slug} />
           ) : (
             <p className="rounded-xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
               No questions in this packet yet.
@@ -134,7 +136,7 @@ function Shell({ children, email }: { children: React.ReactNode; email?: string 
       </header>
       <div className="flex-1 px-4">{children}</div>
       <footer className="border-t border-border">
-        <p className="mx-auto max-w-[1040px] px-4 py-6 text-xs text-muted-foreground">
+        <p className="mx-auto max-w-[1440px] px-4 py-6 text-xs text-muted-foreground">
           Beta — email{" "}
           <Link href={`mailto:${env.contactEmail}`} className="font-medium text-foreground underline underline-offset-2">
             {env.contactEmail}

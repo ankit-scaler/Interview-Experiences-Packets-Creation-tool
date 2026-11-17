@@ -27,3 +27,11 @@
 - **JD round is capped at 50 in total** (earlier today): a pull only fills remaining slots. Rejected: 50 new per pull.
 - **JD topic shown as a flag by parsing the stored `[Topic] ` prefix on render.** Why: no migration, fixes existing data. Rejected: a `topic` column.
 - **Add-Ons use an explicit Save button, not save-on-blur** (2026-11-09). Why: a half-typed note would otherwise go live to learners. Rejected: autosave.
+
+## 2026-11-17 — Preparatory Kit
+- **Admin pastes HackMD markdown; no fetch or iframe.** Why: no network dependency or framing block, and scroll depth stays measurable. Rejected: fetching `hackmd.io/<id>/download`, iframe embed (cross-origin → no scroll tracking). Tradeoff: HackMD edits don't propagate; admin re-pastes.
+- **Kit is `Packet.prepMaterial` (nullable text), not a Round.** Why: a Round would leak into round progress, reordering and question counts. Rejected: round with a `kind` flag.
+- **Kit tracking is its own `PrepRead` table** (first/last read, furthest scroll % + when reached, total seconds), dashboard + CSV only, not mirrored to Sheets. Rejected: extending `PacketRead` (would change round-progress meaning).
+- **Link format `/p/<slug>#prep`**, same hash scheme as `#rN`. With a kit and no hash, the reader opens on the kit.
+- **Added `remark-gfm`** (user approved) so HackMD tables, task lists and strikethrough render; table/`img`/`pre` styling added to `Markdown` (also applies to Add-Ons). Rejected: leaving core Markdown only.
+- **Learner container widened 1040px → 1440px**; kit prose capped at 88ch for line length.

@@ -48,6 +48,7 @@ export default async function PacketEditorPage({
         allowHigherCost: packet.allowHigherCost,
         jdSummary: packet.jdSummary,
         addOns: packet.addOns,
+        prepMaterial: packet.prepMaterial,
         lifetimeCostUsd: packet.lifetimeCostUsd,
         lastGeneratedAt: packet.lastGeneratedAt?.toISOString() ?? null,
         costByPurpose,

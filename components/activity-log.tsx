@@ -30,6 +30,7 @@ const TONE: Record<AdminAction, string> = {
   ROUND_EDITED: "bg-warning/10 text-warning",
   QUESTION_ADDED: "bg-warning/10 text-warning",
   QUESTION_EDITED: "bg-warning/10 text-warning",
+  PREP_EDITED: "bg-warning/10 text-warning",
   PACKET_UNPUBLISHED: "bg-destructive/10 text-destructive",
   PACKET_DELETED: "bg-destructive/10 text-destructive",
   ROUND_DELETED: "bg-destructive/10 text-destructive",

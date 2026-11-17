@@ -3,12 +3,14 @@ import { apiError, guardAdmin, json } from "@/lib/api";
 import { db } from "@/lib/db";
 import { activityPacket, logActivity } from "@/lib/activity";
 import { ADDONS_MAX, normalizeAddOns } from "@/lib/sections";
+import { PREP_MAX, normalizePrep } from "@/lib/prep";
 
 export const runtime = "nodejs";
 
 const Patch = z.object({
   stack: z.string().max(120).nullable().optional(),
   addOns: z.string().max(ADDONS_MAX).nullable().optional(),
+  prepMaterial: z.string().max(PREP_MAX).nullable().optional(),
   sourceMode: z.enum(["SHEET_ONLY", "SHEET_PLUS_WEB"]).optional(),
   allowHigherCost: z.boolean().optional(),
   rounds: z
@@ -31,6 +33,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!parsed.success) return apiError(parsed.error.issues[0]?.message ?? "Invalid input");
   const { rounds, ...packetFields } = parsed.data;
   if (packetFields.addOns !== undefined) packetFields.addOns = normalizeAddOns(packetFields.addOns);
+  if (packetFields.prepMaterial !== undefined) packetFields.prepMaterial = normalizePrep(packetFields.prepMaterial);
 
   if (Object.keys(packetFields).length) {
     await db.packet.update({ where: { id: params.id }, data: packetFields });
@@ -46,16 +49,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     );
   }
 
+  const { prepMaterial, ...otherFields } = packetFields;
   const changed = [
-    ...Object.keys(packetFields),
+    ...Object.keys(otherFields),
     ...(rounds?.length ? [`${rounds.length} round${rounds.length === 1 ? "" : "s"}`] : []),
   ];
+  const packetForLog = changed.length || prepMaterial !== undefined ? await activityPacket(params.id) : null;
   if (changed.length) {
     await logActivity({
       actorEmail: guard.user.email,
       action: "PACKET_EDITED",
-      packet: await activityPacket(params.id),
+      packet: packetForLog,
       detail: changed.join(", "),
+    });
+  }
+  if (prepMaterial !== undefined) {
+    await logActivity({
+      actorEmail: guard.user.email,
+      action: "PREP_EDITED",
+      packet: packetForLog,
+      detail: prepMaterial ? "Preparatory Kit updated" : "Preparatory Kit cleared",
     });
   }
   return json({ ok: true });

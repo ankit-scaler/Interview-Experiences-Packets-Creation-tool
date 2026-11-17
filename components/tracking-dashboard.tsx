@@ -311,6 +311,50 @@ export function TrackingDashboard({
           </table>
         </div>
       </Panel>
+
+      <Panel title="Preparatory Kit reads" href={dl("prep-kit")}>
+        <div className="max-h-[28rem] overflow-auto rounded-md border border-border">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-muted">
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="px-3 py-2 font-medium">Packet</th>
+                <th className="px-3 py-2 font-medium">Learner</th>
+                <th className="px-3 py-2 font-medium">First read</th>
+                <th className="px-3 py-2 font-medium">Last read</th>
+                <th className="px-3 py-2 font-medium">Scroll</th>
+                <th className="px-3 py-2 font-medium">Reached at</th>
+                <th className="px-3 py-2 font-medium">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.prepLog.map((r, i) => (
+                <tr key={i} className="border-t border-border align-top">
+                  <td className="px-3 py-2">
+                    <a href={r.link} target="_blank" rel="noreferrer" className="hover:underline">
+                      {r.company} — {r.role}
+                    </a>
+                  </td>
+                  <td className="px-3 py-2">{r.email}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs">{r.firstRead}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs">{r.lastRead}</td>
+                  <td className="px-3 py-2">
+                    <ScrollBar pct={r.scrollPct} />
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs">{r.scrollAt}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs">{r.timeSpent}</td>
+                </tr>
+              ))}
+              {!data.prepLog.length && (
+                <tr>
+                  <td className="px-3 py-4 text-sm text-muted-foreground" colSpan={7}>
+                    No Preparatory Kit reads in this date range
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
         </div>
       </section>
 

@@ -373,6 +373,44 @@ async function learnerPacketConsumption({ fromDay, toDay }: DateRange): Promise<
   };
 }
 
+/**
+ * Preparatory Kit reads: one row per learner × packet whose last read falls in
+ * range. Depth is the furthest point of the kit seen, with when it was reached.
+ */
+async function prepKitReads({ from, to }: DateRange): Promise<Report> {
+  const reads = await db.prepRead.findMany({
+    where: { lastReadAt: { gte: from, lte: to }, NOT: NOT_INTERNAL },
+    include: { packet: { select: { company: true, role: true, slug: true } } },
+    orderBy: { lastReadAt: "desc" },
+  });
+  return {
+    key: "prep-kit",
+    title: "Preparatory Kit reads",
+    headers: [
+      "Company",
+      "Role",
+      "Learner email",
+      "First read",
+      "Last read",
+      "Max scroll %",
+      "Scroll reached at",
+      "Time spent",
+      "Packet link",
+    ],
+    rows: reads.map((r) => [
+      r.packet.company,
+      r.packet.role,
+      r.userEmail,
+      formatDateTime(r.firstReadAt),
+      formatDateTime(r.lastReadAt),
+      `${r.maxScrollPct}%`,
+      formatDateTime(r.maxScrollAt),
+      formatDuration(r.secondsTotal),
+      packetUrl(r.packet.slug),
+    ]),
+  };
+}
+
 export interface RosterFilters {
   company?: string | null;
   role?: string | null;
@@ -447,6 +485,7 @@ export const REPORTS: Record<string, (r: DateRange) => Promise<Report>> = {
   "repeat-reads": repeatReaders,
   feedback: feedbackReport,
   "vault-clicks": vaultClicks,
+  "prep-kit": prepKitReads,
   "packet-roster": (r) => packetRoster(r),
 };
 
