@@ -1,0 +1,107 @@
+<title>Packet Reader — Tabs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: hero, then a sticky tab bar with per-section progress; one 880px column; topic filter chips + one card per question. */
+:root{--bg:#F5F6F8;--surface:#fff;--fg:#1B2333;--muted:#5C667A;--line:#E0E4EC;--accent:#3B4FD8;--accent-ink:#fff;--accent-soft:#E8EBFC;--warn:#B25E00;--ok:#1B7F4B;
+--font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F131C;--surface:#171C28;--fg:#E8ECF6;--muted:#97A1B8;--line:#272E40;--accent:#8C9BFF;--accent-ink:#0F1330;--accent-soft:#20274A;--warn:#F2A64B;--ok:#4FD08A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F131C;--surface:#171C28;--fg:#E8ECF6;--muted:#97A1B8;--line:#272E40;--accent:#8C9BFF;--accent-ink:#0F1330;--accent-soft:#20274A;--warn:#F2A64B;--ok:#4FD08A;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--font);padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;align-items:center;gap:12px;height:56px;max-width:880px;margin:0 auto}
+.logo{font-weight:700;font-size:20px}.sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-weight:500;font-size:14px}
+.btn:hover{border-color:var(--accent)}.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.btn.ghost{background:none;border-color:transparent;color:var(--muted)}.btn[disabled]{opacity:.5;cursor:not-allowed}
+.wrap{max-width:880px;margin:0 auto;padding-bottom:64px}
+.hero{padding:24px 0 20px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--warn)}
+h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:8px 0;letter-spacing:-.02em;text-wrap:balance}
+.meta{color:var(--muted);font-size:14px;display:flex;gap:6px 18px;flex-wrap:wrap}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--line);padding:8px 0 0;margin-bottom:24px}
+.tab{background:none;border:0;padding:8px 14px 12px;min-width:max-content;position:relative;color:var(--muted);font-weight:500;border-radius:10px 10px 0 0}
+.tab small{font:12px var(--mono);margin-left:6px;color:var(--muted)}
+.tab[aria-current="true"]{color:var(--fg);font-weight:700}
+.tab[aria-current="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;background:var(--accent);border-radius:3px}
+.tab .p{display:block;height:3px;margin-top:6px;border-radius:3px;background:var(--line);overflow:hidden}.tab .p b{display:block;height:100%;background:var(--ok)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+.prose{font-size:18px;line-height:1.75;max-width:68ch}
+.prose h2{font-size:28px;margin:0 0 4px;letter-spacing:-.01em}.prose h3{font-size:21px;margin:30px 0 8px}
+.prose ul{padding-left:22px}.prose li{margin:5px 0}
+.prose code{font-family:var(--mono);font-size:15px;background:var(--accent-soft);padding:1px 6px;border-radius:6px}
+.prose pre{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;overflow-x:auto;font:14px/1.6 var(--mono)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px}.tbl table{border-collapse:collapse;width:100%;font-size:15px}
+.tbl th{background:var(--accent-soft);text-align:left;padding:10px 14px}.tbl td{padding:10px 14px;border-top:1px solid var(--line)}
+.callout{background:var(--accent-soft);border-radius:12px;padding:14px 16px;font-size:16px;margin:16px 0}
+.sub{color:var(--muted);font-size:14px;margin:0 0 16px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.field{height:40px;border:1px solid var(--line);border-radius:99px;background:var(--surface);padding:0 16px;font:inherit;color:var(--fg);flex:1;min-width:200px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 12px;font-size:13px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.q{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.q li{display:grid;grid-template-columns:36px 1fr auto;gap:4px 10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+.q .n{font:13px var(--mono);color:var(--muted);padding-top:4px}.q .t{display:inline-block;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:99px;padding:2px 10px;margin-bottom:6px}
+.q p{margin:0;font-size:18px;line-height:1.55;font-weight:500}.act{display:flex;gap:2px}
+.vault{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:32px}
+[hidden]{display:none!important}
+.sheet{margin-top:72px;padding-top:32px;border-top:2px solid var(--fg)}.sheet h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:28px 0 12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.sw{width:96px}.sw i{display:block;height:44px;border-radius:10px;border:1px solid var(--line)}.sw span{font:12px var(--mono);color:var(--muted)}
+.stars button{background:none;border:0;font-size:22px;color:var(--warn);padding:0 2px}
+.spin{width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite}
+.sk{height:14px;border-radius:7px;background:linear-gradient(90deg,var(--line),var(--accent-soft),var(--line));background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes s{to{transform:rotate(360deg)}}@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.spin,.sk{animation:none}}
+@media (max-width:600px){.q li{grid-template-columns:28px 1fr}.act{grid-column:2}.card{padding:16px}}
+</style>
+<div class="top"><span class="logo">SCALER ◧</span><span class="sp"></span><button class="btn" data-theme-btn>Toggle theme</button></div>
+<div class="wrap">
+  <div class="hero"><p class="eyebrow">Interview packet</p><h1>Nanoheal — Full-Stack Developer</h1><p class="meta"><span>4 sections</span><span>50 questions</span><span>Full-Stack Developer · 2–5 yrs</span></p></div>
+  <nav class="tabs" aria-label="Packet sections">
+    <button class="tab" data-view="kit" aria-current="true">Preparatory Kit<span class="p"><b style="width:40%"></b></span></button>
+    <button class="tab" data-view="round" data-title="R1 · Online Assessment">R1<small>12</small><span class="p"><b style="width:100%"></b></span></button>
+    <button class="tab" data-view="round" data-title="R2 · Technical Interview">R2<small>18</small><span class="p"><b style="width:25%"></b></span></button>
+    <button class="tab" data-view="round" data-title="R3 · Managerial">R3<small>8</small><span class="p"><b style="width:0"></b></span></button>
+    <button class="tab" data-view="round" data-title="FAQ · Based on JD">FAQ<small>50</small><span class="p"><b style="width:0"></b></span></button>
+  </nav>
+  <main>
+    <section data-pane="kit"><div class="card"><div class="prose">
+      <h2>Preparatory Kit</h2><p class="sub">12 min read · Read this before the rounds</p>
+      <div class="callout"><b>How to use this kit.</b> Skim the table, then work through each stack in order. One evening per section.</div>
+      <h3>What Nanoheal tests</h3><p>The final round is a full-stack build: a React front end, a Node API and a SQL schema designed live.</p>
+      <ul><li>React state, effects and re-render cost</li><li>REST design and error handling</li><li>Indexing and joins in Postgres</li></ul>
+      <div class="tbl"><table><thead><tr><th>Stage</th><th>Duration</th><th>Focus</th></tr></thead><tbody><tr><td>Screen</td><td>45 min</td><td>React + JS</td></tr><tr><td>Build</td><td>90 min</td><td>API + DB</td></tr><tr><td>Review</td><td>30 min</td><td>Trade-offs</td></tr></tbody></table></div>
+      <h3>Warm-up snippet</h3><pre>useEffect(() =&gt; {
+  const id = setInterval(tick, 1000);
+  return () =&gt; clearInterval(id);
+}, []);</pre></div></div>
+      <div class="vault card"><div><b>Interview Vault</b><br><span class="sub" style="margin:0">500+ companies × roles — questions, assignments and prep material</span></div><a class="btn pri" href="#" style="text-decoration:none">Open vault →</a></div>
+    </section>
+    <section data-pane="round" hidden>
+      <h2 id="rt" style="font-size:28px;margin:0 0 4px">R1 · Online Assessment</h2><p class="sub">50 questions · 60 min</p>
+      <div class="tools"><input class="field" placeholder="Search questions" aria-label="Search questions"></div>
+      <div class="chips" role="group" aria-label="Filter by topic"><button class="chip" aria-pressed="true">All 50</button><button class="chip" aria-pressed="false">React.js 12</button><button class="chip" aria-pressed="false">Node.js 9</button><button class="chip" aria-pressed="false">SQL 7</button><button class="chip" aria-pressed="false">System design 5</button></div>
+      <ol class="q">
+        <li><span class="n">01</span><div><span class="t">React.js</span><p>Explain the difference between controlled and uncontrolled components in React. When would you use each?</p></div><div class="act"><button class="btn ghost">Copy</button></div></li>
+        <li><span class="n">02</span><div><span class="t">React.js</span><p>What is the purpose of the useEffect hook, and how do you handle cleanup inside it?</p></div><div class="act"><button class="btn ghost">Copy</button></div></li>
+        <li><span class="n">03</span><div><span class="t">React.js</span><p>How does React’s reconciliation algorithm (virtual DOM diffing) work, and why does it matter for performance?</p></div><div class="act"><button class="btn ghost">Copy</button><a class="btn ghost" href="#" style="text-decoration:none">Solve</a></div></li>
+      </ol>
+    </section>
+  </main>
+  <div class="sheet">
+    <h2>Design kit — Option B · Tabs</h2>
+    <h3>Palette</h3><div class="row"><div class="sw"><i style="background:var(--bg)"></i><span>bg</span></div><div class="sw"><i style="background:var(--surface)"></i><span>surface</span></div><div class="sw"><i style="background:var(--fg)"></i><span>fg</span></div><div class="sw"><i style="background:var(--accent)"></i><span>accent</span></div><div class="sw"><i style="background:var(--ok)"></i><span>progress</span></div><div class="sw"><i style="background:var(--warn)"></i><span>warn</span></div></div>
+    <h3>Type</h3><p style="font-size:28px;font-weight:700;margin:0">DM Sans 700 — headings</p><p style="font-size:18px;margin:4px 0">DM Sans 400/500 at 18px / 1.75 — body</p><p style="font:14px var(--mono);margin:0">DM Mono — numbers, code</p>
+    <h3>Buttons</h3><div class="row"><button class="btn pri">Primary</button><button class="btn">Secondary</button><button class="btn ghost">Ghost</button><button class="btn pri" disabled><span class="spin" style="width:14px;height:14px;border-width:2px"></span>Saving</button></div>
+    <h3>Card &amp; form</h3><div class="card" style="max-width:380px"><b>Rate this packet</b><div class="stars"><button>★</button><button>★</button><button>★</button><button>★</button><button>☆</button></div><label for="fb" style="font-size:13px;color:var(--muted)">Did it match your interview?</label><textarea id="fb" class="field" style="height:72px;padding:10px 14px;width:100%;margin:6px 0;border-radius:12px" placeholder="Optional comment"></textarea><button class="btn pri">Send feedback</button></div>
+    <h3>Loaders</h3><div class="row"><span class="spin"></span><div style="width:260px"><div class="sk" style="margin-bottom:8px"></div><div class="sk" style="width:70%"></div></div></div>
+  </div>
+</div>
+<script>
+(function(){var r=document.documentElement,tabs=[].slice.call(document.querySelectorAll('.tab'));
+document.querySelector('[data-theme-btn]').onclick=function(){var d=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.setAttribute('data-theme',d==='dark'?'light':'dark')};
+tabs.forEach(function(t){t.onclick=function(){tabs.forEach(function(x){x.setAttribute('aria-current',x===t?'true':'false')});document.querySelectorAll('[data-pane]').forEach(function(p){p.hidden=p.dataset.pane!==t.dataset.view});if(t.dataset.title)document.getElementById('rt').textContent=t.dataset.title}});
+document.querySelectorAll('.chip').forEach(function(c){c.onclick=function(){document.querySelectorAll('.chip').forEach(function(x){x.setAttribute('aria-pressed',x===c?'true':'false')})}})})();
+</script>

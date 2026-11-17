@@ -9,8 +9,9 @@ import { ReadTracker } from "@/components/read-tracker";
 import { FeedbackFab } from "@/components/feedback-fab";
 import { VaultCard } from "@/components/vault-button";
 import { PacketReader } from "@/components/packet-reader";
-import { AddOnsCard } from "@/components/addons-card";
+import { ReadingProgress } from "@/components/reading-progress";
 import { normalizePrep } from "@/lib/prep";
+import { normalizeAddOns } from "@/lib/sections";
 import { LearnerMenu } from "@/components/learner-menu";
 import { ScalerLogo } from "@/components/scaler-logo";
 
@@ -65,17 +66,19 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
     }));
   const questionCount = rounds.reduce((n, r) => n + r.questions.length, 0);
   const prep = normalizePrep(packet.prepMaterial);
+  const addOns = normalizeAddOns(packet.addOns);
 
   return (
     <Shell email={user.email}>
+      <ReadingProgress />
       <ReadTracker slug={params.slug} totalRounds={rounds.length} />
-      <div className="mx-auto max-w-[1440px] pb-12 pt-5 sm:pt-7">
+      <div className="mx-auto max-w-[1280px] pb-12 pt-3 sm:pt-4">
         <header>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-warning">Interview packet</p>
-          <h1 className="mt-2 text-balance text-[26px] font-bold leading-tight tracking-tight sm:text-[36px]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-warning">Interview packet</p>
+          <h1 className="mt-2 text-balance text-2xl font-extrabold leading-[1.15] tracking-tight sm:text-[34px]">
             {packet.company} — {packet.role}
           </h1>
-          <p className="mt-2.5 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] text-muted-foreground">
+          <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
             <span>{rounds.length} {rounds.length === 1 ? "round" : "rounds"}</span>
             <span>{questionCount} {questionCount === 1 ? "question" : "questions"}</span>
             <span>
@@ -84,19 +87,15 @@ export default async function LearnerPacketPage({ params }: { params: { slug: st
           </p>
         </header>
 
-        {packet.addOns?.trim() && (
-          <div className="mt-5 sm:mt-6">
-            <AddOnsCard markdown={packet.addOns} />
-          </div>
-        )}
-
-        <div className="mt-5 sm:mt-6">
-          <VaultCard slug={params.slug} />
-        </div>
-
-        <div className="mt-5 sm:mt-6">
-          {rounds.length || prep ? (
-            <PacketReader rounds={rounds} prep={prep} slug={params.slug} />
+        <div className="mt-6">
+          {rounds.length || prep || addOns ? (
+            <PacketReader
+              rounds={rounds}
+              prep={prep}
+              addOns={addOns}
+              slug={params.slug}
+              footer={<VaultCard slug={params.slug} />}
+            />
           ) : (
             <p className="rounded-xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
               No questions in this packet yet.
@@ -136,7 +135,7 @@ function Shell({ children, email }: { children: React.ReactNode; email?: string 
       </header>
       <div className="flex-1 px-4">{children}</div>
       <footer className="border-t border-border">
-        <p className="mx-auto max-w-[1440px] px-4 py-6 text-xs text-muted-foreground">
+        <p className="mx-auto max-w-[1280px] px-4 py-6 text-xs text-muted-foreground">
           Beta — email{" "}
           <Link href={`mailto:${env.contactEmail}`} className="font-medium text-foreground underline underline-offset-2">
             {env.contactEmail}

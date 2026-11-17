@@ -1,0 +1,116 @@
+<title>Packet Reader — Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: three panes — sections rail | content | context panel (outline for the kit, topic filters for rounds). Thin reading-progress bar. Dense rows. */
+:root{--bg:#F6F8F7;--surface:#fff;--fg:#10201A;--muted:#58695F;--line:#DDE6E1;--accent:#0B7A55;--accent-ink:#fff;--accent-soft:#DDF3E8;--warn:#A85A00;
+--font:'Manrope',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0A1210;--surface:#101C18;--fg:#E5F2EC;--muted:#8CA399;--line:#1F322B;--accent:#34D399;--accent-ink:#052018;--accent-soft:#12372B;--warn:#F2A64B;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0A1210;--surface:#101C18;--fg:#E5F2EC;--muted:#8CA399;--line:#1F322B;--accent:#34D399;--accent-ink:#052018;--accent-soft:#12372B;--warn:#F2A64B;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--font);padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.prog{position:fixed;left:0;right:0;top:0;height:3px;background:transparent;z-index:20}.prog b{display:block;height:100%;width:0;background:var(--accent)}
+.top{display:flex;align-items:center;gap:12px;height:56px;max-width:1280px;margin:0 auto}
+.logo{font-weight:800;font-size:20px}.sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:13px}
+.btn:hover{border-color:var(--accent)}.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.btn.ghost{background:none;border-color:transparent;color:var(--muted)}.btn[disabled]{opacity:.5;cursor:not-allowed}
+.wrap{max-width:1280px;margin:0 auto;padding-block:12px 64px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+h1{font-size:clamp(24px,3.4vw,34px);line-height:1.15;margin:6px 0;letter-spacing:-.02em;font-weight:800;text-wrap:balance}
+.meta{color:var(--muted);font-size:13px;display:flex;gap:4px 16px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:240px minmax(0,1fr) 220px;gap:32px;margin-top:24px;align-items:start}
+.rail,.ctx{position:sticky;top:72px}
+h6{margin:0 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.rail ul,.ctx ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.tab{width:100%;text-align:left;background:none;border:0;border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:10px;color:var(--muted);font-weight:600}
+.tab:hover{background:var(--accent-soft);color:var(--fg)}.tab[aria-current="true"]{background:var(--accent-soft);color:var(--fg)}
+.ring{width:22px;height:22px;border-radius:50%;flex:none;background:conic-gradient(var(--accent) calc(var(--v)*1%),var(--line) 0);display:grid;place-items:center}.ring::after{content:"";width:14px;height:14px;border-radius:50%;background:var(--bg)}
+.tab[aria-current="true"] .ring::after{background:var(--accent-soft)}
+.tab span.l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tab small{font:12px var(--mono)}
+.vault{margin-top:20px;padding:14px;border-radius:10px;background:var(--accent);color:var(--accent-ink)}.vault b{display:block;font-size:15px}.vault span{font-size:12px;opacity:.85}.vault a{display:inline-block;margin-top:8px;color:inherit;font-weight:700;font-size:13px}
+.pane{max-width:760px}
+.pane h2{font-size:26px;line-height:1.25;margin:0 0 4px;font-weight:800;letter-spacing:-.01em}.sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+.prose{font-size:17px;line-height:1.75}.prose h3{font-size:20px;margin:30px 0 8px;font-weight:700;scroll-margin-top:72px}
+.prose ul{padding-left:22px}.prose li{margin:4px 0}
+.prose code{font-family:var(--mono);font-size:14px;background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+.prose pre{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font:13.5px/1.6 var(--mono)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}.tbl table{border-collapse:collapse;width:100%;font-size:14.5px}
+.tbl th{background:var(--accent-soft);text-align:left;padding:9px 12px}.tbl td{padding:9px 12px;border-top:1px solid var(--line)}
+.callout{border:1px solid var(--accent);border-radius:8px;padding:12px 14px;font-size:15px;margin-bottom:8px}
+.field{height:36px;border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:0 12px;font:inherit;color:var(--fg);width:100%}
+.q{list-style:none;margin:14px 0 0;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.q li{display:grid;grid-template-columns:44px 1fr auto;padding:14px 16px 14px 0;border-top:1px solid var(--line);align-items:start}.q li:first-child{border-top:0}
+.q .n{font:12px var(--mono);color:var(--muted);text-align:center;padding-top:5px}
+.q .t{display:inline-block;font:500 11px var(--mono);color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 7px;margin-bottom:4px}
+.q p{margin:0;font-size:16.5px;line-height:1.6;font-weight:500}
+.ctx a{display:block;padding:5px 0 5px 12px;border-left:2px solid var(--line);color:var(--muted);text-decoration:none;font-size:13.5px;font-weight:500}.ctx a:hover,.ctx a.on{color:var(--fg);border-left-color:var(--accent)}
+.fl{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;padding:6px 0}.fl input{accent-color:var(--accent)}
+[hidden]{display:none!important}
+.sheet{margin-top:72px;padding-top:28px;border-top:2px solid var(--fg)}.sheet h3{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:26px 0 12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.sw{width:96px}.sw i{display:block;height:44px;border-radius:6px;border:1px solid var(--line)}.sw span{font:12px var(--mono);color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;max-width:360px}
+.stars button{background:none;border:0;font-size:22px;color:var(--warn);padding:0 2px}
+.spin{width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite}
+.sk{height:14px;border-radius:5px;background:linear-gradient(90deg,var(--line),var(--accent-soft),var(--line));background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes s{to{transform:rotate(360deg)}}@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.spin,.sk{animation:none}}
+@media (max-width:1060px){.grid{grid-template-columns:220px minmax(0,1fr)}.ctx{display:none}}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr);gap:16px}.rail{position:static}.rail ul{flex-direction:row;overflow-x:auto}.tab{min-width:150px;border:1px solid var(--line)}.rail h6,.vault{display:none}.q li{grid-template-columns:32px 1fr}.q .act{grid-column:2;margin-top:6px}}
+</style>
+<div class="prog" aria-hidden="true"><b id="pb"></b></div>
+<div class="top"><span class="logo">SCALER ◧</span><span class="sp"></span><button class="btn" data-theme-btn>Toggle theme</button></div>
+<div class="wrap">
+  <p class="eyebrow">Interview packet</p><h1>Nanoheal — Full-Stack Developer</h1>
+  <p class="meta"><span>4 sections</span><span>50 questions</span><span>Full-Stack Developer · 2–5 yrs</span><span>Overall 22% read</span></p>
+  <div class="grid">
+    <nav class="rail" aria-label="Packet sections"><h6>Sections</h6>
+      <ul>
+        <li><button class="tab" data-view="kit" aria-current="true"><i class="ring" style="--v:40"></i><span class="l">Preparatory Kit</span></button></li>
+        <li><button class="tab" data-view="round" data-title="R1 · Online Assessment"><i class="ring" style="--v:100"></i><span class="l">R1 · Online Assessment</span><small>12</small></button></li>
+        <li><button class="tab" data-view="round" data-title="R2 · Technical Interview"><i class="ring" style="--v:25"></i><span class="l">R2 · Technical</span><small>18</small></button></li>
+        <li><button class="tab" data-view="round" data-title="R3 · Managerial"><i class="ring" style="--v:0"></i><span class="l">R3 · Managerial</span><small>8</small></button></li>
+        <li><button class="tab" data-view="round" data-title="FAQ · Based on JD"><i class="ring" style="--v:0"></i><span class="l">FAQ · Based on JD</span><small>50</small></button></li>
+      </ul>
+      <div class="vault"><b>Interview Vault</b><span>500+ companies × roles</span><br><a href="#">Open vault →</a></div>
+    </nav>
+    <main>
+      <section class="pane" data-pane="kit"><h2>Preparatory Kit</h2><p class="sub">12 min read · Read this before the rounds</p>
+        <div class="prose"><div class="callout"><b>How to use this kit.</b> Skim the table, then work through each stack in order.</div>
+        <h3 id="s1">What Nanoheal tests</h3><p>The final round is a full-stack build: a React front end, a Node API and a SQL schema designed live.</p><ul><li>React state, effects and re-render cost</li><li>REST design and error handling</li><li>Indexing and joins in Postgres</li></ul>
+        <h3 id="s2">Round format</h3><div class="tbl"><table><thead><tr><th>Stage</th><th>Duration</th><th>Focus</th></tr></thead><tbody><tr><td>Screen</td><td>45 min</td><td>React + JS</td></tr><tr><td>Build</td><td>90 min</td><td>API + DB</td></tr><tr><td>Review</td><td>30 min</td><td>Trade-offs</td></tr></tbody></table></div>
+        <h3 id="s3">Warm-up snippet</h3><pre>useEffect(() =&gt; {
+  const id = setInterval(tick, 1000);
+  return () =&gt; clearInterval(id);
+}, []);</pre></div>
+      </section>
+      <section class="pane" data-pane="round" hidden><h2 id="rt">R1 · Online Assessment</h2><p class="sub">50 questions · 60 min</p>
+        <input class="field" placeholder="Search questions  ( / )" aria-label="Search questions">
+        <ol class="q">
+          <li><span class="n">01</span><div><span class="t">React.js</span><p>Explain the difference between controlled and uncontrolled components in React. When would you use each?</p></div><div class="act"><button class="btn ghost">Copy</button></div></li>
+          <li><span class="n">02</span><div><span class="t">React.js</span><p>What is the purpose of the useEffect hook, and how do you handle cleanup inside it?</p></div><div class="act"><button class="btn ghost">Copy</button></div></li>
+          <li><span class="n">03</span><div><span class="t">React.js</span><p>How does React’s reconciliation algorithm (virtual DOM diffing) work, and why does it matter for performance?</p></div><div class="act"><button class="btn ghost">Copy</button><a class="btn ghost" href="#" style="text-decoration:none">Solve</a></div></li>
+        </ol>
+      </section>
+    </main>
+    <aside class="ctx" aria-label="Context">
+      <div data-ctx="kit"><h6>On this page</h6><ul><li><a class="on" href="#s1">What Nanoheal tests</a></li><li><a href="#s2">Round format</a></li><li><a href="#s3">Warm-up snippet</a></li></ul></div>
+      <div data-ctx="round" hidden><h6>Topics</h6><label class="fl"><span>React.js</span><input type="checkbox" checked></label><label class="fl"><span>Node.js</span><input type="checkbox" checked></label><label class="fl"><span>SQL</span><input type="checkbox" checked></label><label class="fl"><span>System design</span><input type="checkbox" checked></label></div>
+    </aside>
+  </div>
+  <div class="sheet">
+    <h2>Design kit — Option C · Studio</h2>
+    <h3>Palette</h3><div class="row"><div class="sw"><i style="background:var(--bg)"></i><span>bg</span></div><div class="sw"><i style="background:var(--surface)"></i><span>surface</span></div><div class="sw"><i style="background:var(--fg)"></i><span>fg</span></div><div class="sw"><i style="background:var(--accent)"></i><span>accent</span></div><div class="sw"><i style="background:var(--accent-soft)"></i><span>soft</span></div><div class="sw"><i style="background:var(--warn)"></i><span>warn</span></div></div>
+    <h3>Type</h3><p style="font-size:26px;font-weight:800;margin:0">Manrope 800 — headings</p><p style="font-size:17px;margin:4px 0">Manrope 400/500 at 16.5px / 1.6 — body</p><p style="font:14px var(--mono);margin:0">JetBrains Mono — numbers, topics, code</p>
+    <h3>Buttons</h3><div class="row"><button class="btn pri">Primary</button><button class="btn">Secondary</button><button class="btn ghost">Ghost</button><button class="btn pri" disabled><span class="spin" style="width:14px;height:14px;border-width:2px"></span>Saving</button></div>
+    <h3>Card &amp; form</h3><div class="card"><b>Rate this packet</b><div class="stars"><button>★</button><button>★</button><button>★</button><button>★</button><button>☆</button></div><label for="fb" style="font-size:13px;color:var(--muted)">Did it match your interview?</label><textarea id="fb" class="field" style="height:70px;padding:8px 12px;margin:6px 0" placeholder="Optional comment"></textarea><button class="btn pri">Send feedback</button></div>
+    <h3>Loaders</h3><div class="row"><span class="spin"></span><div style="width:260px"><div class="sk" style="margin-bottom:8px"></div><div class="sk" style="width:70%"></div></div></div>
+  </div>
+</div>
+<script>
+(function(){var r=document.documentElement,tabs=[].slice.call(document.querySelectorAll('.tab'));
+document.querySelector('[data-theme-btn]').onclick=function(){var d=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.setAttribute('data-theme',d==='dark'?'light':'dark')};
+tabs.forEach(function(t){t.onclick=function(){tabs.forEach(function(x){x.setAttribute('aria-current',x===t?'true':'false')});document.querySelectorAll('[data-pane]').forEach(function(p){p.hidden=p.dataset.pane!==t.dataset.view});document.querySelectorAll('[data-ctx]').forEach(function(p){p.hidden=p.dataset.ctx!==t.dataset.view});if(t.dataset.title)document.getElementById('rt').textContent=t.dataset.title}});
+addEventListener('scroll',function(){var h=document.documentElement;document.getElementById('pb').style.width=Math.min(100,100*h.scrollTop/Math.max(1,h.scrollHeight-h.clientHeight))+'%'},{passive:true})})();
+</script>

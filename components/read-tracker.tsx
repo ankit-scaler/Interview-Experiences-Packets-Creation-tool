@@ -9,7 +9,7 @@ export const ROUND_DONE_EVENT = "packet:round-done";
 
 const storageKey = (slug: string) => `rounds-done:${slug}`;
 
-function loadDone(slug: string): Set<string> {
+export function loadDone(slug: string): Set<string> {
   try {
     const raw = window.localStorage.getItem(storageKey(slug));
     return new Set(raw ? (JSON.parse(raw) as string[]) : []);

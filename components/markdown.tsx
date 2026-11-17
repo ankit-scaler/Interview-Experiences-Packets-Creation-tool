@@ -1,10 +1,28 @@
+import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { makeSlugger } from "@/lib/prep";
+import { cn } from "@/lib/utils";
+
+/** Plain text of a heading's rendered children (for its id). */
+function textOf(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (node && typeof node === "object" && "props" in node) return textOf((node as { props: { children?: ReactNode } }).props.children);
+  return "";
+}
 
 /** Safe markdown: raw HTML is not rendered; links open in a new tab. */
-export function Markdown({ source }: { source: string }) {
+export function Markdown({ source, large = false }: { source: string; large?: boolean }) {
+  // Fresh per render so repeated headings get stable -2, -3 suffixes in document order.
+  const slug = makeSlugger();
   return (
-    <div className="space-y-2 text-[15px] leading-6 [&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc">
+    <div
+      className={cn(
+        "[&_li]:ml-5 [&_ol]:list-decimal [&_ul]:list-disc",
+        large ? "space-y-4 text-[17px] leading-[1.75]" : "space-y-2 text-[15px] leading-6",
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -18,9 +36,15 @@ export function Markdown({ source }: { source: string }) {
               {children}
             </a>
           ),
-          h1: ({ children }) => <h3 className="text-base font-bold">{children}</h3>,
-          h2: ({ children }) => <h3 className="text-base font-bold">{children}</h3>,
-          h3: ({ children }) => <h4 className="text-sm font-bold">{children}</h4>,
+          h1: ({ children }) => (
+            <h3 id={slug(textOf(children))} data-h="1" className={cn("scroll-mt-20 font-bold", large ? "pt-3 text-2xl" : "text-base")}>{children}</h3>
+          ),
+          h2: ({ children }) => (
+            <h3 id={slug(textOf(children))} data-h="2" className={cn("scroll-mt-20 font-bold", large ? "pt-3 text-xl" : "text-base")}>{children}</h3>
+          ),
+          h3: ({ children }) => (
+            <h4 id={slug(textOf(children))} data-h="3" className={cn("scroll-mt-20 font-bold", large ? "pt-2 text-lg" : "text-sm")}>{children}</h4>
+          ),
           code: ({ children }) => (
             <code className="rounded bg-muted px-1 py-0.5 text-[13px]">{children}</code>
           ),

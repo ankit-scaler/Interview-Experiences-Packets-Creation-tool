@@ -8,7 +8,7 @@ export const PREP_MAX_DELTA = 180;
 export const PREP_MAX_SECONDS = 36_000;
 
 /** What the reader is showing: the kit, or the round at this 0-based index. */
-export type ReaderView = "prep" | number;
+export type ReaderView = "prep" | "addons" | number;
 
 /** Empty / whitespace-only kit means "not added" (stored as null). */
 export function normalizePrep(input: string | null | undefined): string | null {
@@ -21,8 +21,14 @@ export function normalizePrep(input: string | null | undefined): string | null {
  * or an out-of-range round) falls back to the default: the kit when there is
  * one, otherwise round 1.
  */
-export function parseReaderHash(hash: string, roundCount: number, hasPrep: boolean): ReaderView {
+export function parseReaderHash(
+  hash: string,
+  roundCount: number,
+  hasPrep: boolean,
+  hasAddOns = false,
+): ReaderView {
   const fallback: ReaderView = hasPrep ? "prep" : 0;
+  if (hash === "#addons") return hasAddOns ? "addons" : fallback;
   if (hash === "#prep") return fallback;
   const m = hash.match(/^#r(\d+)$/);
   if (!m) return fallback;
@@ -31,7 +37,9 @@ export function parseReaderHash(hash: string, roundCount: number, hasPrep: boole
 }
 
 export function hashFor(view: ReaderView): string {
-  return view === "prep" ? "#prep" : `#r${view + 1}`;
+  if (view === "prep") return "#prep";
+  if (view === "addons") return "#addons";
+  return `#r${view + 1}`;
 }
 
 /**
@@ -53,4 +61,27 @@ export function clampPct(raw: unknown): number {
 export function clampPrepSeconds(raw: unknown): number {
   if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
   return Math.min(PREP_MAX_DELTA, Math.max(0, Math.round(raw)));
+}
+
+/** Window event + storage key for how far the kit has been scrolled (0–100), per browser. */
+export const PREP_PROGRESS_EVENT = "packet:prep-progress";
+export const prepSeenKey = (slug: string) => `prep-seen:${slug}`;
+
+/**
+ * Heading ids for the kit outline. Call once per render and feed headings in
+ * document order: repeats get `-2`, `-3`…, and an empty slug becomes "section".
+ */
+export function makeSlugger(): (text: string) => string {
+  const seen = new Map<string, number>();
+  return (text: string) => {
+    const base =
+      text
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s-]/gu, "")
+        .trim()
+        .replace(/\s+/g, "-") || "section";
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    return n === 1 ? base : `${base}-${n}`;
+  };
 }

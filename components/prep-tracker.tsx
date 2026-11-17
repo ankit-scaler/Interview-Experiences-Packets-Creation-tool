@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type RefObject } from "react";
-import { scrollSeenPct } from "@/lib/prep";
+import { PREP_PROGRESS_EVENT, prepSeenKey, scrollSeenPct } from "@/lib/prep";
 
 const TICK_MS = 20_000;
 const SCROLL_DEBOUNCE_MS = 1_500;
@@ -47,6 +47,17 @@ export function PrepTracker({ slug, targetRef }: { slug: string; targetRef: RefO
       }
     };
 
+    // Per-browser copy of the depth so the rail's progress ring can show it.
+    const remember = (p: number) => {
+      try {
+        const prev = Number(window.localStorage.getItem(prepSeenKey(slug)) || 0);
+        if (p > prev) window.localStorage.setItem(prepSeenKey(slug), String(p));
+      } catch {
+        /* storage unavailable — the ring just won't persist */
+      }
+      window.dispatchEvent(new CustomEvent(PREP_PROGRESS_EVENT, { detail: p }));
+    };
+
     const measure = () => {
       const el = targetRef.current;
       if (!el) return;
@@ -54,6 +65,7 @@ export function PrepTracker({ slug, targetRef }: { slug: string; targetRef: RefO
       const pct = scrollSeenPct(r.top, r.height, window.innerHeight);
       if (pct > maxPct) {
         maxPct = pct;
+        remember(pct);
         if (registered) {
           clearTimeout(debounce);
           debounce = setTimeout(() => send(false), SCROLL_DEBOUNCE_MS);

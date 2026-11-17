@@ -21,6 +21,7 @@ const TAB_FOR: Record<string, string> = {
   "llm-cost": "LLM Cost",
   feedback: "Feedback",
   "vault-clicks": "Vault Clicks",
+  "prep-kit": "Preparatory Kit Reads",
   "packet-roster": "Packet Directory",
 };
 

@@ -1,0 +1,136 @@
+<title>Packet Reader — Focus</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: sticky contents rail + one narrow reading column (66ch). Hairline rows instead of boxed cards. */
+:root{--bg:#F3F6F6;--surface:#fff;--fg:#14272B;--muted:#587075;--line:#DCE5E6;--accent:#0E6B73;--accent-ink:#fff;--accent-soft:#E1F0F1;--warn:#B4540A;
+--font:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0C1A1D;--surface:#12262A;--fg:#E6F1F1;--muted:#8FA9AD;--line:#214046;--accent:#4CC3CC;--accent-ink:#06262A;--accent-soft:#14383D;--warn:#F0A15A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0C1A1D;--surface:#12262A;--fg:#E6F1F1;--muted:#8FA9AD;--line:#214046;--accent:#4CC3CC;--accent-ink:#06262A;--accent-soft:#14383D;--warn:#F0A15A;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--font);padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;align-items:center;gap:12px;height:56px;max-width:1120px;margin:0 auto}
+.logo{font-weight:700;letter-spacing:.02em;font-size:20px}.logo i{color:var(--accent);font-style:normal}
+.top .sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:500;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.wrap{max-width:1120px;margin:0 auto;padding-block:20px 64px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--warn)}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:8px 0 6px;letter-spacing:-.01em;text-wrap:balance}
+.meta{color:var(--muted);font-size:14px;display:flex;gap:6px 18px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:224px minmax(0,1fr);gap:48px;margin-top:28px;align-items:start}
+.rail{position:sticky;top:72px}
+.rail h6{margin:0 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.rail ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.tab{width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:9px 10px;display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;color:var(--muted)}
+.tab:hover{background:var(--accent-soft);color:var(--fg)}
+.tab[aria-current="true"]{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+.tab small{font-size:12px;font-family:var(--mono);color:var(--muted)}
+.tab .bar{grid-column:1/-1;height:3px;border-radius:3px;background:var(--line);overflow:hidden}
+.tab .bar b{display:block;height:100%;background:var(--accent)}
+.tag{font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:99px;padding:1px 8px}
+.vault{margin-top:20px;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--muted)}
+.vault b{display:block;color:var(--fg);font-size:14px}
+.pane{max-width:66ch}
+.pane h2{font-size:26px;line-height:1.25;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+.prose{font-size:17px;line-height:1.8}
+.prose h3{font-size:20px;margin:32px 0 8px}
+.prose ul{padding-left:22px}.prose li{margin:4px 0}
+.prose code{font-family:var(--mono);font-size:14px;background:var(--accent-soft);padding:1px 6px;border-radius:5px}
+.prose pre{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto;font:14px/1.6 var(--mono)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.tbl table{border-collapse:collapse;width:100%;font-size:15px}
+.tbl th{background:var(--accent-soft);text-align:left;padding:10px 14px}.tbl td{padding:10px 14px;border-top:1px solid var(--line)}
+.callout{background:var(--accent-soft);border-radius:10px;padding:14px 16px;font-size:16px;margin-bottom:8px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.field{height:38px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:0 12px;font:inherit;color:var(--fg);flex:1;min-width:180px}
+.q{list-style:none;margin:0;padding:0}
+.q li{display:grid;grid-template-columns:40px 1fr auto;gap:0 8px;padding:20px 0;border-top:1px solid var(--line)}
+.q .n{font-family:var(--mono);font-size:13px;color:var(--muted);padding-top:3px}
+.q .t{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:4px}
+.q p{margin:0;font-size:18px;line-height:1.6;font-weight:500}
+.q .act{display:flex;gap:4px;align-items:flex-start}
+.next{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding:16px 0;border-top:1px solid var(--line)}
+[hidden]{display:none!important}
+/* component sheet */
+.sheet{margin-top:72px;padding-top:32px;border-top:2px solid var(--fg)}
+.sheet h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:28px 0 12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.sw{width:96px}.sw i{display:block;height:44px;border-radius:8px;border:1px solid var(--line)}.sw span{font:12px var(--mono);color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;max-width:360px}
+.stars button{background:none;border:0;font-size:22px;color:var(--warn);padding:0 2px}
+.spin{width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite}
+.sk{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--line),var(--accent-soft),var(--line));background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes s{to{transform:rotate(360deg)}}@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.spin,.sk{animation:none}}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr);gap:20px}.rail{position:static}.rail ul{flex-direction:row;overflow-x:auto;padding-bottom:4px}.tab{min-width:170px;border:1px solid var(--line)}.rail h6,.vault{display:none}.q li{grid-template-columns:32px 1fr}.q .act{grid-column:2;margin-top:8px}}
+</style>
+<div class="top"><span class="logo">SCALER<i>◧</i></span><span class="sp"></span><button class="btn" data-theme-btn>Toggle theme</button><button class="btn" aria-label="Account">Account</button></div>
+<div class="wrap">
+  <p class="eyebrow">Interview packet</p>
+  <h1>Nanoheal — Full-Stack Developer</h1>
+  <p class="meta"><span>4 sections</span><span>50 questions</span><span>Full-Stack Developer · 2–5 yrs</span></p>
+  <div class="grid">
+    <nav class="rail" aria-label="Packet sections">
+      <h6>Contents</h6>
+      <ul>
+        <li><button class="tab" data-view="kit" aria-current="true"><span>Preparatory Kit</span><span class="tag">Start here</span><span class="bar"><b style="width:40%"></b></span></button></li>
+        <li><button class="tab" data-view="round" data-title="R1 · Online Assessment"><span>R1 · Online Assessment</span><small>12</small><span class="bar"><b style="width:100%"></b></span></button></li>
+        <li><button class="tab" data-view="round" data-title="R2 · Technical Interview"><span>R2 · Technical Interview</span><small>18</small><span class="bar"><b style="width:25%"></b></span></button></li>
+        <li><button class="tab" data-view="round" data-title="R3 · Managerial"><span>R3 · Managerial</span><small>8</small><span class="bar"><b style="width:0"></b></span></button></li>
+        <li><button class="tab" data-view="round" data-title="Frequently Asked — Based on JD"><span>FAQ · Based on JD</span><small>50</small><span class="bar"><b style="width:0"></b></span></button></li>
+      </ul>
+      <div class="vault"><b>Interview Vault</b>500+ companies × roles. <a href="#">Open vault →</a></div>
+    </nav>
+    <main>
+      <section class="pane" data-pane="kit">
+        <h2>Preparatory Kit</h2><p class="sub">12 min read · Read this before the rounds</p>
+        <div class="prose">
+          <div class="callout"><b>How to use this kit.</b> Skim the table first, then work through each stack in order. Budget one evening per section.</div>
+          <h3>1. What Nanoheal tests</h3>
+          <p>The final round is a full-stack build: a small React front end, a Node API, and a SQL schema you design on the spot.</p>
+          <ul><li>React state, effects and re-render cost</li><li>REST design and error handling in Node</li><li>Indexing and joins in Postgres</li></ul>
+          <div class="tbl"><table><thead><tr><th>Stage</th><th>Duration</th><th>Focus</th></tr></thead><tbody><tr><td>Screen</td><td>45 min</td><td>React + JS</td></tr><tr><td>Build</td><td>90 min</td><td>API + DB</td></tr><tr><td>Review</td><td>30 min</td><td>Trade-offs</td></tr></tbody></table></div>
+          <h3>2. Warm-up snippet</h3>
+          <pre>useEffect(() =&gt; {
+  const id = setInterval(tick, 1000);
+  return () =&gt; clearInterval(id); // cleanup
+}, []);</pre>
+        </div>
+        <div class="next"><span class="sub" style="margin:0">Next section</span><button class="btn pri" data-go="1">R1 · Online Assessment →</button></div>
+      </section>
+      <section class="pane" data-pane="round" hidden>
+        <h2 id="rt">R1 · Online Assessment</h2><p class="sub">50 questions · 60 min</p>
+        <div class="tools"><input class="field" id="s1" placeholder="Search questions" aria-label="Search questions"><button class="btn ghost">All topics ▾</button></div>
+        <ol class="q">
+          <li><span class="n">01</span><div><span class="t">React.js</span><p>Explain the difference between controlled and uncontrolled components in React. When would you use each?</p></div><div class="act"><button class="btn ghost">Copy</button></div></li>
+          <li><span class="n">02</span><div><span class="t">React.js</span><p>What is the purpose of the useEffect hook, and how do you handle cleanup inside it?</p></div><div class="act"><button class="btn ghost">Copy</button></div></li>
+          <li><span class="n">03</span><div><span class="t">React.js</span><p>How does React’s reconciliation algorithm (virtual DOM diffing) work, and why does it matter for performance?</p></div><div class="act"><button class="btn ghost">Copy</button><a class="btn ghost" href="#">Solve</a></div></li>
+        </ol>
+        <div class="next"><span class="sub" style="margin:0">Section complete when you reach here</span><button class="btn pri" data-go="2">R2 · Technical Interview →</button></div>
+      </section>
+    </main>
+  </div>
+  <div class="sheet">
+    <h2>Design kit — Option A · Focus</h2>
+    <h3>Palette (current theme)</h3><div class="row"><div class="sw"><i style="background:var(--bg)"></i><span>bg</span></div><div class="sw"><i style="background:var(--surface)"></i><span>surface</span></div><div class="sw"><i style="background:var(--fg)"></i><span>fg</span></div><div class="sw"><i style="background:var(--muted)"></i><span>muted</span></div><div class="sw"><i style="background:var(--accent)"></i><span>accent</span></div><div class="sw"><i style="background:var(--warn)"></i><span>warn</span></div></div>
+    <h3>Type</h3><p style="font-size:26px;font-weight:700;margin:0">IBM Plex Sans 700 — headings</p><p style="font-size:17px;margin:4px 0">IBM Plex Sans 400/500 at 17px / 1.8 — body</p><p style="font:14px var(--mono);margin:0">IBM Plex Mono — numbers, code</p>
+    <h3>Buttons</h3><div class="row"><button class="btn pri">Primary</button><button class="btn">Secondary</button><button class="btn ghost">Ghost</button><button class="btn pri" disabled><span class="spin" style="width:14px;height:14px;border-width:2px"></span>Saving</button></div>
+    <h3>Card &amp; form</h3><div class="card"><b>Rate this packet</b><div class="stars"><button>★</button><button>★</button><button>★</button><button>★</button><button>☆</button></div><label for="fb" style="font-size:13px;color:var(--muted)">Did it match your interview?</label><textarea id="fb" class="field" style="height:70px;padding:8px 12px;width:100%;margin:6px 0" placeholder="Optional comment"></textarea><button class="btn pri">Send feedback</button></div>
+    <h3>Loaders</h3><div class="row"><span class="spin"></span><div style="width:260px"><div class="sk" style="margin-bottom:8px"></div><div class="sk" style="width:70%"></div></div></div>
+  </div>
+</div>
+<script>
+(function(){var r=document.documentElement,tabs=[].slice.call(document.querySelectorAll('.tab'));
+document.querySelector('[data-theme-btn]').onclick=function(){var d=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.setAttribute('data-theme',d==='dark'?'light':'dark')};
+function show(i){tabs.forEach(function(t,j){t.setAttribute('aria-current',j===i?'true':'false')});var t=tabs[i];document.querySelectorAll('[data-pane]').forEach(function(p){p.hidden=p.dataset.pane!==t.dataset.view});if(t.dataset.title)document.getElementById('rt').textContent=t.dataset.title}
+tabs.forEach(function(t,i){t.onclick=function(){show(i)}});
+document.querySelectorAll('[data-go]').forEach(function(b){b.onclick=function(){show(+b.dataset.go);scrollTo(0,0)}})})();
+</script>

@@ -5,6 +5,7 @@ import {
   clampPct,
   clampPrepSeconds,
   hashFor,
+  makeSlugger,
   normalizePrep,
   parseReaderHash,
   scrollSeenPct,
@@ -98,5 +99,42 @@ describe("clamps", () => {
     expect(clampPrepSeconds("12")).toBe(0);
     expect(clampPrepSeconds(NaN)).toBe(0);
     expect(clampPrepSeconds(Infinity)).toBe(0);
+  });
+});
+
+describe("parseReaderHash with Add-Ons", () => {
+  it("opens Add-Ons for #addons when they exist", () => {
+    expect(parseReaderHash("#addons", 3, true, true)).toBe("addons");
+    expect(parseReaderHash("#addons", 3, false, true)).toBe("addons");
+  });
+  it("#addons without Add-Ons falls back to the default", () => {
+    expect(parseReaderHash("#addons", 3, true, false)).toBe("prep");
+    expect(parseReaderHash("#addons", 3, false, false)).toBe(0);
+    expect(parseReaderHash("#addons", 3, true)).toBe("prep");
+  });
+  it("hashFor handles addons", () => {
+    expect(hashFor("addons")).toBe("#addons");
+  });
+});
+
+describe("makeSlugger", () => {
+  it("lower-cases, hyphenates and strips punctuation", () => {
+    const slug = makeSlugger();
+    expect(slug("What Nanoheal tests?")).toBe("what-nanoheal-tests");
+    expect(slug("  1. How to use this kit ")).toBe("1-how-to-use-this-kit");
+  });
+  it("de-duplicates repeated headings in order", () => {
+    const slug = makeSlugger();
+    expect(slug("Setup")).toBe("setup");
+    expect(slug("Setup")).toBe("setup-2");
+    expect(slug("Setup")).toBe("setup-3");
+  });
+  it("never returns an empty id", () => {
+    const slug = makeSlugger();
+    expect(slug("!!!")).toBe("section");
+    expect(slug("???")).toBe("section-2");
+  });
+  it("keeps unicode letters", () => {
+    expect(makeSlugger()("Café basics")).toBe("café-basics");
   });
 });

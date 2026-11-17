@@ -35,3 +35,11 @@
 - **Link format `/p/<slug>#prep`**, same hash scheme as `#rN`. With a kit and no hash, the reader opens on the kit.
 - **Added `remark-gfm`** (user approved) so HackMD tables, task lists and strikethrough render; table/`img`/`pre` styling added to `Markdown` (also applies to Add-Ons). Rejected: leaving core Markdown only.
 - **Learner container widened 1040px → 1440px**; kit prose capped at 88ch for line length.
+
+## 2026-11-17 — Learner reader redesign (Option C · Studio)
+- **Picked option C** (`design/option-c.html`); tokens in `docs/design-tokens.md`. Three panes: sections rail | content | context panel; rows with hairlines instead of boxed cards; 3px reading-progress bar. Container 1440px → 1280px, content column ≤ 760px (the 1440 widening would have stretched lines).
+- **Fonts: kept Manrope + DM Mono** (already loaded). Rejected: adding JetBrains Mono (extra font file for a near-identical look). Earlier claim that the app used Geist was wrong.
+- **Add-Ons became a rail item** (`#addons`, after the Kit) instead of a card above the content. `components/addons-card.tsx` is now unused (left in place, not deleted).
+- **Vault banner became a compact card** in the rail (desktop) / under the content (phone); click logging unchanged.
+- **Progress rings are honest, not fancy:** rounds are 0 or 100% (the app only records "reached the end"); the kit shows furthest scroll %, both remembered in `localStorage`. No overall "% read" in the header (server only tracks rounds).
+- **Topic filters only where `[Topic]` prefixes exist** (JD round). Kit outline is read from rendered headings (ids from `makeSlugger`), no new library. Outline links scroll via JS, not `#anchors`, because the hash is the view router.
