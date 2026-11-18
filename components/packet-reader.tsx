@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, BookOpen, ExternalLink, Search, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Check, ExternalLink, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { splitTopic } from "@/lib/topic";
 import {
@@ -35,25 +35,32 @@ function roundLabel(r: ReaderRound, i: number) {
   return r.isSpillover ? r.name : `R${i + 1} · ${r.name}`;
 }
 
-const TAB =
-  "flex w-full min-w-[168px] shrink-0 items-center gap-2.5 rounded-md border px-2.5 py-2 text-left text-sm font-semibold transition-colors md:min-w-0 md:border-transparent";
-const TAB_ON = "border-border bg-accent/10 text-foreground md:border-transparent";
-const TAB_OFF = "border-border text-muted-foreground hover:bg-accent/10 hover:text-foreground md:border-transparent";
-
-/** Progress ring: filled arc = percent complete. */
-function Ring({ pct }: { pct: number }) {
+/** Stepper node: check when finished, pie when started, hollow when not. */
+function Node({ pct, current }: { pct: number; current: boolean }) {
+  const p = Math.max(0, Math.min(100, pct));
   return (
     <span
       aria-hidden
-      className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full"
-      style={{
-        background: `conic-gradient(hsl(var(--accent)) ${Math.max(0, Math.min(100, pct))}%, hsl(var(--border)) 0)`,
-      }}
+      className={cn(
+        "grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2 bg-background",
+        p >= 100 ? "border-accent bg-accent text-accent-foreground" : p > 0 ? "border-accent" : "border-border",
+        current && "border-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.2),0_0_0_5px_hsl(var(--accent))]",
+      )}
+      style={p > 0 && p < 100 ? { background: `conic-gradient(hsl(var(--accent)) ${p}%, hsl(var(--background)) 0)` } : undefined}
     >
-      <span className="h-3.5 w-3.5 rounded-full bg-card" />
+      {p >= 100 && <Check className="h-3 w-3" strokeWidth={3} />}
     </span>
   );
 }
+
+const ROW =
+  "relative flex min-w-max items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left text-[15px] transition-colors hover:bg-accent/10 md:min-w-0 md:w-full";
+const ROW_ON = "border-accent bg-accent/10 font-extrabold text-foreground";
+const ROW_OFF = "border-border bg-card font-semibold text-foreground md:border-transparent md:bg-transparent";
+const GROUP =
+  "contents md:relative md:flex md:flex-col md:gap-0.5 md:before:absolute md:before:bottom-4 md:before:left-[19px] md:before:top-4 md:before:w-0.5 md:before:bg-border md:before:content-['']";
+const GROUP_LABEL =
+  "hidden px-2.5 pb-1.5 pt-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-warning md:block";
 
 /**
  * Three panes: sections rail | content | context panel (kit outline, or topic
@@ -224,47 +231,55 @@ export function PacketReader({
       ref={topRef}
       className="scroll-mt-20 md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-8 lg:grid-cols-[240px_minmax(0,1fr)_220px]"
     >
-      {/* Rail — horizontal tabs on phone, sticky sidebar from md. Stays visible in every view. */}
+      {/* Rail — stepper on desktop (grouped, connected nodes), swipe row on phone. Stays visible in every view. */}
       <nav aria-label="Packet sections" className="md:sticky md:top-20 md:self-start">
-        <p className="mb-2 hidden px-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground md:block">
-          Sections
-        </p>
-        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:px-0 md:pb-0">
-          {hasPrep && (
-            <button
-              type="button"
-              onClick={() => goTo("prep")}
-              aria-current={view === "prep" ? "true" : undefined}
-              className={cn(TAB, view === "prep" ? TAB_ON : TAB_OFF)}
-            >
-              <Ring pct={prepPct} />
-              <span className="min-w-0 flex-1 truncate">Preparatory Kit</span>
-            </button>
+        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 md:mx-0 md:block md:overflow-visible md:px-0 md:pb-0">
+          {(hasPrep || hasAddOns) && <p className={GROUP_LABEL}>Prepare</p>}
+          {(hasPrep || hasAddOns) && (
+            <div className={GROUP}>
+              {hasPrep && (
+                <button
+                  type="button"
+                  onClick={() => goTo("prep")}
+                  aria-current={view === "prep" ? "true" : undefined}
+                  className={cn(ROW, view === "prep" ? ROW_ON : ROW_OFF)}
+                >
+                  <Node pct={prepPct} current={view === "prep"} />
+                  <span className="min-w-0 flex-1 truncate">Preparatory Kit</span>
+                  {prepPct === 0 && (
+                    <span className="rounded-full bg-accent/20 px-2 text-[10.5px] font-bold text-accent">Start here</span>
+                  )}
+                </button>
+              )}
+              {hasAddOns && (
+                <button
+                  type="button"
+                  onClick={() => goTo("addons")}
+                  aria-current={view === "addons" ? "true" : undefined}
+                  className={cn(ROW, view === "addons" ? ROW_ON : ROW_OFF)}
+                >
+                  <Node pct={0} current={view === "addons"} />
+                  <span className="min-w-0 flex-1 truncate">Add-Ons</span>
+                </button>
+              )}
+            </div>
           )}
-          {hasAddOns && (
-            <button
-              type="button"
-              onClick={() => goTo("addons")}
-              aria-current={view === "addons" ? "true" : undefined}
-              className={cn(TAB, view === "addons" ? TAB_ON : TAB_OFF)}
-            >
-              <Sparkles className="h-[22px] w-[22px] shrink-0 p-[3px] text-accent" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">Add-Ons</span>
-            </button>
-          )}
-          {rounds.map((r, i) => (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => goTo(i)}
-              aria-current={i === view ? "true" : undefined}
-              className={cn(TAB, i === view ? TAB_ON : TAB_OFF)}
-            >
-              <Ring pct={done.has(r.id) ? 100 : 0} />
-              <span className="min-w-0 flex-1 truncate" title={roundLabel(r, i)}>{roundLabel(r, i)}</span>
-              <span className="font-mono text-xs tabular-nums">{r.questions.length}</span>
-            </button>
-          ))}
+          {rounds.length > 0 && <p className={cn(GROUP_LABEL, (hasPrep || hasAddOns) && "mt-2")}>Rounds</p>}
+          <div className={GROUP}>
+            {rounds.map((r, i) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => goTo(i)}
+                aria-current={i === view ? "true" : undefined}
+                className={cn(ROW, i === view ? ROW_ON : ROW_OFF)}
+              >
+                <Node pct={done.has(r.id) ? 100 : 0} current={i === view} />
+                <span className="min-w-0 flex-1 truncate" title={roundLabel(r, i)}>{roundLabel(r, i)}</span>
+                <span className="font-mono text-xs font-normal tabular-nums text-muted-foreground">{r.questions.length}</span>
+              </button>
+            ))}
+          </div>
         </div>
         {footer && <div className="mt-5 hidden md:block">{footer}</div>}
       </nav>

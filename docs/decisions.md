@@ -43,3 +43,7 @@
 - **Vault banner became a compact card** in the rail (desktop) / under the content (phone); click logging unchanged.
 - **Progress rings are honest, not fancy:** rounds are 0 or 100% (the app only records "reached the end"); the kit shows furthest scroll %, both remembered in `localStorage`. No overall "% read" in the header (server only tracks rounds).
 - **Topic filters only where `[Topic]` prefixes exist** (JD round). Kit outline is read from rendered headings (ids from `makeSlugger`), no new library. Outline links scroll via JS, not `#anchors`, because the hash is the view router.
+
+## 2026-11-18 — Sections rail: stepper (option 2 of `design/rail-options.html`)
+- **Why:** inactive items were dim grey and the current one a faint tint, so the rail blended into the content. Chose the grouped stepper (Prepare / Rounds, connected nodes: check = finished, pie = started, hollow = not started, glowing = current, full-strength labels). Rejected: panel with solid fill (doesn't show progress as clearly), tiles (needs a summary line per section and more room).
+- Phone keeps the swipe row; current item gets an accent border + tint. Add-Ons node stays hollow (nothing tracks it). "Start here" tag shows on the Kit until it has been scrolled at all.

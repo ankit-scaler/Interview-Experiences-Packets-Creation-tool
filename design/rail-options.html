@@ -1,0 +1,147 @@
+<title>Sections Rail Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+/* Three ways to make the Sections rail stand out from the content. Same palette as Option C. */
+:root{--bg:#F6F8F7;--surface:#fff;--fg:#10201A;--muted:#58695F;--line:#DDE6E1;--accent:#0B7A55;--accent-ink:#fff;--accent-soft:#DDF3E8;--warn:#A85A00;--rail:#EAF0EC;
+--font:'Manrope',system-ui,sans-serif;--mono:'DM Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0A1210;--surface:#101C18;--fg:#E5F2EC;--muted:#8CA399;--line:#1F322B;--accent:#34D399;--accent-ink:#052018;--accent-soft:#12372B;--warn:#F2A64B;--rail:#0F1B17;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0A1210;--surface:#101C18;--fg:#E5F2EC;--muted:#8CA399;--line:#1F322B;--accent:#34D399;--accent-ink:#052018;--accent-soft:#12372B;--warn:#F2A64B;--rail:#0F1B17;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--font);padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;text-align:left}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 56px}
+.head{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.head h1{font-size:24px;margin:0;font-weight:800;letter-spacing:-.01em;flex:1;min-width:240px}
+.tg{height:34px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-weight:600;font-size:13px}
+.lede{color:var(--muted);max-width:70ch;margin:6px 0 24px}
+.opt{margin-bottom:40px}
+.opt>h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 4px;color:var(--accent)}
+.opt>p{margin:0 0 14px;color:var(--muted);font-size:14px;max-width:80ch}
+.stage{display:grid;grid-template-columns:260px minmax(0,1fr);gap:28px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:22px;align-items:start}
+.content h3{margin:0 0 6px;font-size:24px;font-weight:800;letter-spacing:-.01em}
+.content p{margin:0 0 10px;font-size:16px;line-height:1.7;color:var(--fg);opacity:.9;max-width:60ch}
+.tag{font-size:10.5px;font-weight:700;letter-spacing:.04em;border-radius:99px;padding:1px 8px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+/* status glyphs: done = check, partial = pie, todo = hollow */
+.g{width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:11px;font-weight:800;border:2px solid var(--gb,var(--line));color:var(--gc,transparent);background:var(--gf,transparent)}
+.g.done{--gf:var(--accent);--gb:var(--accent);--gc:var(--accent-ink)}
+.g.part{background:conic-gradient(var(--accent) var(--p),transparent 0);border-color:var(--accent)}
+.it{width:100%;display:flex;align-items:center;gap:10px}
+.it .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it small{font:12px var(--mono)}
+.sec{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+
+/* 1 — Panel: its own surface, full-contrast labels, solid accent for the current item */
+.r1{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;box-shadow:0 1px 2px rgb(0 0 0/.06)}
+.r1 .rh{display:flex;justify-content:space-between;align-items:center;padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.r1 .rh b{font-size:14px;font-weight:800}.r1 .rh span{font:12px var(--mono);color:var(--muted)}
+.r1 .it{padding:10px;border-radius:8px;font-weight:600;color:var(--fg)}
+.r1 .it:hover{background:var(--accent-soft)}
+.r1 .it[aria-current="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.r1 .it[aria-current="true"] .g{--gb:var(--accent-ink);--gc:var(--accent-ink);--gf:transparent}
+.r1 .it[aria-current="true"] .g.part{background:conic-gradient(var(--accent-ink) var(--p),transparent 0)}
+.r1 .it[aria-current="true"] .tag{background:rgb(255 255 255/.22);color:var(--accent-ink)}
+
+/* 2 — Stepper: grouped (Prepare / Rounds), connected nodes show the path */
+.r2{position:relative;padding:4px 0}
+.r2 .sec{color:var(--warn);padding:8px 10px 6px}
+.r2 .grp{position:relative}
+.r2 .grp::before{content:"";position:absolute;left:19px;top:14px;bottom:14px;width:2px;background:var(--line)}
+.r2 .it{position:relative;padding:9px 10px;border-radius:8px;border:1px solid transparent;font-weight:600;color:var(--fg)}
+.r2 .it .g{background:var(--bg);width:18px;height:18px}
+.r2 .it .g.done{background:var(--accent)}
+.r2 .it:hover{background:var(--accent-soft)}
+.r2 .it[aria-current="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:800}
+.r2 .it[aria-current="true"] .g{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft),0 0 0 6px var(--accent)}
+
+/* 3 — Tiles: each section is a card with its own sub-line and progress bar */
+.r3{display:flex;flex-direction:column;gap:8px}
+.r3 .it{display:block;padding:11px 12px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.r3 .it:hover{border-color:var(--accent)}
+.r3 .t{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14.5px}.r3 .t .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r3 .s{font-size:12px;color:var(--muted);margin-top:2px}
+.r3 .b{height:4px;border-radius:4px;background:var(--line);margin-top:8px;overflow:hidden}.r3 .b i{display:block;height:100%;background:var(--accent)}
+.r3 .it[aria-current="true"]{border:2px solid var(--accent);padding:10px 11px 9px;background:var(--accent-soft);box-shadow:0 4px 14px rgb(0 0 0/.12)}
+.r3 .it[aria-current="true"] .t{color:var(--fg)}
+
+/* phone strips */
+.ph{margin-top:16px}.ph h4{margin:0 0 6px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;max-width:420px}
+.pill{flex:none;display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;white-space:nowrap}
+.pill[aria-current="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.strip.s2 .pill{border-radius:10px}.strip.s2 .pill[aria-current="true"]{background:var(--accent-soft);color:var(--fg);border:2px solid var(--accent)}
+.strip.s3 .pill{border-radius:10px;height:auto;padding:8px 12px;flex-direction:column;align-items:flex-start;gap:0;min-width:150px}.strip.s3 .pill small{font-weight:500;font-size:11px;color:var(--muted)}
+.strip.s3 .pill[aria-current="true"]{background:var(--accent-soft);color:var(--fg);border:2px solid var(--accent)}
+.note{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--surface);font-size:14px}
+.note b{display:block;margin-bottom:4px}
+@media (max-width:780px){.stage{grid-template-columns:minmax(0,1fr);padding:14px}}
+</style>
+<div class="wrap">
+  <div class="head"><h1>Sections rail — three ways to make it stand out</h1><button class="tg" id="tg">Toggle light / dark</button></div>
+  <p class="lede">Today the inactive items are dim grey on the page background and the current one is a faint tint, so the rail and the reading text read as one block. All three options fix that with full-contrast labels, a clearly different current item, and visible status for what you have finished. Click items to try them.</p>
+
+  <section class="opt">
+    <h2>Option 1 · Panel</h2>
+    <p>The rail gets its own surface and a "Sections · 6" header. Labels are full-strength text. The current section is a solid accent bar, so you can find it from across the screen. Smallest change from today.</p>
+    <div class="stage">
+      <nav class="r1" data-rail aria-label="Packet sections (option 1)">
+        <div class="rh"><b>Sections</b><span>6</span></div>
+        <button class="it" data-item aria-current="true"><i class="g part" style="--p:40%"></i><span class="lb">Preparatory Kit</span><span class="tag">Start here</span></button>
+        <button class="it" data-item><i class="g"></i><span class="lb">Add-Ons</span></button>
+        <button class="it" data-item><i class="g done">✓</i><span class="lb">R1 · Online Assessment</span><small>12</small></button>
+        <button class="it" data-item><i class="g part" style="--p:35%"></i><span class="lb">R2 · Technical</span><small>18</small></button>
+        <button class="it" data-item><i class="g"></i><span class="lb">R3 · Managerial</span><small>8</small></button>
+        <button class="it" data-item><i class="g"></i><span class="lb">FAQ · Based on JD</span><small>50</small></button>
+      </nav>
+      <div class="content"><h3>Preparatory Kit</h3><p>You cleared Round 1, the take-home assignment. The final round is a mix of technical discussion and coding with the Director of Product. That tells us three things.</p><p>Your R1 submission may come up. Be ready to explain why you fixed a bug a certain way and how you tested it.</p></div>
+    </div>
+    <div class="ph"><h4>Phone</h4><div class="strip"><button class="pill" aria-current="true">Preparatory Kit</button><button class="pill">Add-Ons</button><button class="pill">R1 · Online Assessment</button><button class="pill">R2 · Technical</button></div></div>
+  </section>
+
+  <section class="opt">
+    <h2>Option 2 · Stepper</h2>
+    <p>Sections are grouped into "Prepare" and "Rounds", joined by a line with a node per section: filled check when finished, pie when started, hollow when not. The current node glows. Best at showing where you are in the whole packet and what is left.</p>
+    <div class="stage">
+      <nav class="r2" data-rail aria-label="Packet sections (option 2)">
+        <div class="sec">Prepare</div>
+        <div class="grp">
+          <button class="it" data-item aria-current="true"><i class="g part" style="--p:40%"></i><span class="lb">Preparatory Kit</span><span class="tag">Start here</span></button>
+          <button class="it" data-item><i class="g"></i><span class="lb">Add-Ons</span></button>
+        </div>
+        <div class="sec" style="margin-top:8px">Rounds</div>
+        <div class="grp">
+          <button class="it" data-item><i class="g done">✓</i><span class="lb">R1 · Online Assessment</span><small>12</small></button>
+          <button class="it" data-item><i class="g part" style="--p:35%"></i><span class="lb">R2 · Technical</span><small>18</small></button>
+          <button class="it" data-item><i class="g"></i><span class="lb">R3 · Managerial</span><small>8</small></button>
+          <button class="it" data-item><i class="g"></i><span class="lb">FAQ · Based on JD</span><small>50</small></button>
+        </div>
+      </nav>
+      <div class="content"><h3>Preparatory Kit</h3><p>You cleared Round 1, the take-home assignment. The final round is a mix of technical discussion and coding with the Director of Product. That tells us three things.</p><p>Your R1 submission may come up. Be ready to explain why you fixed a bug a certain way and how you tested it.</p></div>
+    </div>
+    <div class="ph"><h4>Phone</h4><div class="strip s2"><button class="pill" aria-current="true"><i class="g part" style="--p:40%;width:16px;height:16px"></i>Preparatory Kit</button><button class="pill"><i class="g" style="width:16px;height:16px"></i>Add-Ons</button><button class="pill"><i class="g done" style="width:16px;height:16px;font-size:9px">✓</i>R1</button><button class="pill"><i class="g part" style="--p:35%;width:16px;height:16px"></i>R2</button></div></div>
+  </section>
+
+  <section class="opt">
+    <h2>Option 3 · Tiles</h2>
+    <p>Each section is its own card with a one-line summary ("12 min read", "18 questions · 30 min") and a progress bar. The current tile gets a thick accent border, tinted fill and a shadow. Takes the most room, but tells you what is inside before you click.</p>
+    <div class="stage">
+      <nav class="r3" data-rail aria-label="Packet sections (option 3)">
+        <button class="it" data-item aria-current="true"><span class="t"><span class="lb">Preparatory Kit</span><span class="tag">Start here</span></span><span class="s">12 min read</span><span class="b"><i style="width:40%"></i></span></button>
+        <button class="it" data-item><span class="t"><span class="lb">Add-Ons</span></span><span class="s">Notes from the team</span><span class="b"><i style="width:0"></i></span></button>
+        <button class="it" data-item><span class="t"><span class="lb">R1 · Online Assessment</span></span><span class="s">12 questions · 45 min</span><span class="b"><i style="width:100%"></i></span></button>
+        <button class="it" data-item><span class="t"><span class="lb">R2 · Technical</span></span><span class="s">18 questions · 60 min</span><span class="b"><i style="width:35%"></i></span></button>
+        <button class="it" data-item><span class="t"><span class="lb">FAQ · Based on JD</span></span><span class="s">50 questions</span><span class="b"><i style="width:0"></i></span></button>
+      </nav>
+      <div class="content"><h3>Preparatory Kit</h3><p>You cleared Round 1, the take-home assignment. The final round is a mix of technical discussion and coding with the Director of Product. That tells us three things.</p><p>Your R1 submission may come up. Be ready to explain why you fixed a bug a certain way and how you tested it.</p></div>
+    </div>
+    <div class="ph"><h4>Phone</h4><div class="strip s3"><button class="pill" aria-current="true">Preparatory Kit<small>12 min read</small></button><button class="pill">Add-Ons<small>Notes from the team</small></button><button class="pill">R1 · Online<small>12 questions</small></button><button class="pill">R2 · Technical<small>18 questions</small></button></div></div>
+  </section>
+
+  <div class="note"><b>What stays the same in all three</b>Section order (Kit, Add-Ons, rounds), the stay-visible rail on desktop and the swipe row on phone, the Vault card under the rail, and the progress rules: round rings are done or not done, and the kit shows how far you scrolled. Option 3 needs one extra line of text per section (kit read time, questions plus duration), which the app already has.</div>
+</div>
+<script>
+(function(){var r=document.documentElement;
+document.getElementById('tg').onclick=function(){var d=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.setAttribute('data-theme',d==='dark'?'light':'dark')};
+document.querySelectorAll('[data-rail]').forEach(function(rail){var items=[].slice.call(rail.querySelectorAll('[data-item]'));items.forEach(function(it){it.onclick=function(){items.forEach(function(x){x.setAttribute('aria-current',x===it?'true':'false')});var h=rail.parentNode.querySelector('.content h3');var l=it.querySelector('.lb');if(h&&l)h.textContent=l.textContent}})});
+document.querySelectorAll('.strip').forEach(function(s){var ps=[].slice.call(s.querySelectorAll('.pill'));ps.forEach(function(p){p.onclick=function(){ps.forEach(function(x){x.setAttribute('aria-current',x===p?'true':'false')})}})})})();
+</script>
