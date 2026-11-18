@@ -177,14 +177,26 @@ export async function runStep(jobId: string): Promise<JobStep> {
     where: { id: jobId },
     include: { packet: true },
   });
+  // Another driver (second tab, retry) already finished this job: never rerun
+  // or rewind it.
+  if (job.status === "SUCCEEDED") return "DONE";
+  // Heal a row poisoned by an old race (stale call set RUNNING after DONE):
+  // step DONE means all work finished, so close it out instead of looping.
+  if (job.step === "DONE") {
+    await db.generationJob.update({
+      where: { id: jobId },
+      data: { status: "SUCCEEDED", progress: 100, stepLabel: "Done", finishedAt: job.finishedAt ?? new Date() },
+    });
+    return "DONE";
+  }
   const packet = job.packet;
   const ctx = ctxFromPacket(packet);
   const scratch = (job.scratch as Scratch | null) ?? {};
   const step = job.step;
   const meta = { jobId: job.id, packetId: packet.id };
 
-  await db.generationJob.update({
-    where: { id: jobId },
+  await db.generationJob.updateMany({
+    where: { id: jobId, status: { not: "SUCCEEDED" } },
     data: { status: "RUNNING", stepLabel: STEP_LABEL[step], progress: STEP_PROGRESS[step] - 8 },
   });
 
@@ -681,8 +693,10 @@ async function save(
   statsPatch?: Record<string, number>,
 ) {
   const job = await db.generationJob.findUniqueOrThrow({ where: { id: jobId }, select: { stats: true } });
-  await db.generationJob.update({
-    where: { id: jobId },
+  // updateMany + status guard: a stale concurrent call must not overwrite a job
+  // that has already SUCCEEDED.
+  await db.generationJob.updateMany({
+    where: { id: jobId, status: { not: "SUCCEEDED" } },
     data: {
       scratch: scratch as unknown as object,
       step,

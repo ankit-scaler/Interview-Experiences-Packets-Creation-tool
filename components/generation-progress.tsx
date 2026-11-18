@@ -28,10 +28,12 @@ export function GenerationProgress({
   const [job, setJob] = useState<JobState | null>(null);
   const [running, setRunning] = useState(initialActive);
   const [showLog, setShowLog] = useState(false);
-  const cancelled = useRef(false);
+  const runId = useRef(0);
 
   const drive = useCallback(async () => {
-    cancelled.current = false;
+    // Per-run token: a newer drive() (or unmount) invalidates older loops.
+    const me = ++runId.current;
+    const stale = () => runId.current !== me;
     setRunning(true);
     // Pull current state first.
     try {
@@ -43,7 +45,7 @@ export function GenerationProgress({
 
     // Advance one step at a time.
     // eslint-disable-next-line no-constant-condition
-    while (!cancelled.current) {
+    while (!stale()) {
       let res: Response;
       try {
         // eslint-disable-next-line no-await-in-loop
@@ -53,9 +55,30 @@ export function GenerationProgress({
         await new Promise((r) => setTimeout(r, 2500));
         continue;
       }
-      // eslint-disable-next-line no-await-in-loop
-      const data = await res.json();
+      let data: { done?: boolean; status?: string };
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        data = await res.json();
+      } catch {
+        // Non-JSON (e.g. platform timeout page): the step is retried.
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 2500));
+        continue;
+      }
+      if (stale()) return;
       if (res.status === 404) {
+        // No active job: someone else finished it (or it failed). Resync.
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const s = await fetch(`/api/packets/${packetId}/job`).then((r) => r.json());
+          if (s.job) setJob(s.job);
+          if (s.job?.status === "SUCCEEDED") {
+            window.location.href = window.location.pathname;
+            return;
+          }
+        } catch {
+          /* ignore */
+        }
         setRunning(false);
         return;
       }
@@ -95,7 +118,7 @@ export function GenerationProgress({
         .catch(() => {});
     }
     return () => {
-      cancelled.current = true;
+      runId.current++;
     };
   }, [initialActive, drive, packetId]);
 
