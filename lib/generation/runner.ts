@@ -2,7 +2,15 @@ import type { GenerationJob, JobStep, Packet } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env, hasLlm } from "@/lib/env";
 import { getRepoRows } from "@/lib/sheets/repo";
-import { companyMatches, roleRelevance, roundKey, roundKeyOrder } from "@/lib/match";
+import { companyMatches, roleRelevance, roundKey } from "@/lib/match";
+import {
+  canonicalRoundName,
+  draftRank,
+  findExistingRound,
+  kindKey,
+  planOrder,
+  type RoundRef,
+} from "@/lib/rounds";
 import { normalizeQuestion, questionSimilarity } from "@/lib/normalize";
 import { YOE_BUCKET_LABELS } from "@/lib/match";
 import { improveReadability, looksClean } from "@/lib/llm/improve";
@@ -385,12 +393,24 @@ export async function runStep(jobId: string): Promise<JobStep> {
             ? db.round.findMany({
                 where: { packetId: packet.id },
                 select: {
+                  id: true,
+                  order: true,
+                  isSpillover: true,
                   sheetKey: true,
                   name: true,
                   _count: { select: { questions: { where: { status: "ACTIVE" } } } },
                 },
               })
-            : Promise.resolve([] as { sheetKey: string | null; name: string; _count: { questions: number } }[]),
+            : Promise.resolve(
+                [] as {
+                  id: string;
+                  order: number;
+                  isSpillover: boolean;
+                  sheetKey: string | null;
+                  name: string;
+                  _count: { questions: number };
+                }[],
+              ),
           job.kind === "APPEND"
             ? db.question.findMany({
                 where: { packetId: packet.id, status: "ACTIVE" },
@@ -403,21 +423,19 @@ export async function runStep(jobId: string): Promise<JobStep> {
           }),
         ]);
 
-        const existingCountByKey = new Map<string, number>();
-        for (const r of existingRounds) {
-          existingCountByKey.set(r.sheetKey ?? roundKey(r.name), r._count.questions);
-        }
         const blockList = [
           ...existingQ.map((e) => e.normalizedText),
           ...suppressedQ.map((s) => s.normalizedText),
         ];
 
-        // Combine sheet + web rounds that share a key.
+        // Combine sheet + web rounds that share a key — or a special kind
+        // (Online Assessment / Hiring Manager / HR: one per packet).
         const byKey = new Map<string, DraftRound>();
         for (const round of incoming) {
-          const m = byKey.get(round.key);
+          const k = round.isSpillover ? round.key : kindKey(round);
+          const m = byKey.get(k);
           if (m) m.questions.push(...round.questions);
-          else byKey.set(round.key, { ...round, questions: [...round.questions] });
+          else byKey.set(k, { ...round, questions: [...round.questions] });
         }
 
         const accepted: string[] = [];
@@ -425,7 +443,7 @@ export async function runStep(jobId: string): Promise<JobStep> {
         const out: DraftRound[] = [];
 
         for (const round of [...byKey.values()].sort(
-          (a, b) => roundKeyOrder(a.key) - roundKeyOrder(b.key),
+          (a, b) => draftRank(a) - draftRank(b),
         )) {
           // Collapse dups within the round (sheet+web), summing occurrences.
           let qs = dedupeWithin(round.questions);
@@ -455,7 +473,8 @@ export async function runStep(jobId: string): Promise<JobStep> {
           // Cap: top 50 per round (INITIAL) or fill remaining slots (APPEND).
           const limit =
             job.kind === "APPEND"
-              ? MAX_QUESTIONS_PER_ROUND - (existingCountByKey.get(round.key) ?? 0)
+              ? MAX_QUESTIONS_PER_ROUND -
+                (findExistingRound(round, existingRounds)?._count.questions ?? 0)
               : MAX_QUESTIONS_PER_ROUND;
           qs = capRound(qs, limit, nowTs);
           qs.forEach((q) => accepted.push(q.normalizedText));
@@ -715,16 +734,31 @@ async function finalize(job: GenerationJob, packet: Packet, scratch: Scratch) {
       where: { packetId: packet.id },
       include: { questions: { select: { id: true, normalizedText: true, problemLink: true } } },
     });
-    const byKey = new Map(existingRounds.map((r) => [r.sheetKey ?? roundKey(r.name), r]));
-    let orderBase = existingRounds.length;
+    // Live view of rounds so each new round is placed against the latest orders.
+    const refs: RoundRef[] = existingRounds.map((r) => ({
+      id: r.id,
+      name: r.name,
+      order: r.order,
+      sheetKey: r.sheetKey,
+      isSpillover: r.isSpillover,
+    }));
+    const byId = new Map(existingRounds.map((r) => [r.id, r]));
 
-    for (const dr of draftRounds) {
-      let round = byKey.get(dr.key);
+    for (const draft of draftRounds) {
+      const dr = draft.isSpillover ? draft : { ...draft, name: canonicalRoundName(draft.name) };
+      const match = findExistingRound(dr, refs);
+      let round = match ? byId.get(match.id) : undefined;
       if (!round) {
+        const plan = planOrder(refs, dr);
+        for (const sh of plan.shifts) {
+          await tx.round.update({ where: { id: sh.id }, data: { order: sh.order } });
+          const ref = refs.find((x) => x.id === sh.id);
+          if (ref) ref.order = sh.order;
+        }
         round = await tx.round.create({
           data: {
             packetId: packet.id,
-            order: dr.isSpillover ? 900 : orderBase++,
+            order: plan.order,
             name: dr.name,
             duration: dr.duration ?? null,
             isSpillover: Boolean(dr.isSpillover),
@@ -733,7 +767,14 @@ async function finalize(job: GenerationJob, packet: Packet, scratch: Scratch) {
           },
           include: { questions: { select: { id: true, normalizedText: true, problemLink: true } } },
         });
-        byKey.set(dr.key, round);
+        byId.set(round.id, round);
+        refs.push({
+          id: round.id,
+          name: round.name,
+          order: round.order,
+          sheetKey: round.sheetKey,
+          isSpillover: round.isSpillover,
+        });
       } else if (job.kind === "INITIAL") {
         await tx.round.update({
           where: { id: round.id },
